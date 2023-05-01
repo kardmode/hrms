@@ -20,6 +20,7 @@ from frappe.utils import (
 	flt,
 	get_link_to_form,
 	getdate,
+	cstr
 )
 
 import erpnext
@@ -126,10 +127,14 @@ class PayrollEntry(Document):
 		)
 		if sal_struct:
 			cond += "and t2.salary_structure IN %(sal_struct)s "
-			cond += "and t2.payroll_payable_account = %(payroll_payable_account)s "
 			cond += "and %(from_date)s >= t2.from_date"
+			
+			# if self.payroll_payable_account:
+				# cond += " and t2.payroll_payable_account = %(payroll_payable_account)s"
+			
 			emp_list = get_emp_list(sal_struct, cond, self.end_date, self.payroll_payable_account)
 			emp_list = remove_payrolled_employees(emp_list, self.start_date, self.end_date)
+			emp_list = remove_away_employees(emp_list, self.start_date, self.end_date,self.employees_on_leave)
 			return emp_list
 
 	def make_filters(self):
@@ -183,7 +188,8 @@ class PayrollEntry(Document):
 		Creates salary slip for selected employees if already not created
 		"""
 		self.check_permission("write")
-		employees = [emp.employee for emp in self.employees]
+		employees = [emp.employee for emp in self.get_emp_list()]
+		# employees = [emp.employee for emp in self.employees]
 		if employees:
 			args = frappe._dict(
 				{
@@ -814,7 +820,6 @@ def get_sal_struct(
 		where
 			docstatus = 1 and
 			is_active = 'Yes'
-			and company = %(company)s
 			and currency = %(currency)s and
 			ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
 			{condition}""".format(
@@ -880,13 +885,79 @@ def remove_payrolled_employees(emp_list, start_date, end_date):
 				"employee": employee_details.employee,
 				"start_date": start_date,
 				"end_date": end_date,
-				"docstatus": 1,
+				# "docstatus": 1,
 			},
 		):
 			new_emp_list.append(employee_details)
 
 	return new_emp_list
+	
+def remove_away_employees(emp_list, start_date, end_date,employees_on_leave):
+	working_days = date_diff(end_date, start_date) + 1
+	from hrms.hr.utils import get_holiday_dates_for_employee
+	new_emp_list = []
+	for e in emp_list:
+		holidays = get_holiday_dates_for_employee(e.employee, start_date, end_date)
+		lwp = calculate_lwp(e.employee, start_date , holidays, working_days)
 
+		if cint(employees_on_leave):
+			if lwp > 0:
+				new_emp_list.append(e)
+		else:
+			joining_date, relieving_date = frappe.db.get_value("Employee", e.employee, 
+				["date_of_joining", "relieving_date"])
+		
+			payment_days = 0
+			payment_days = flt(get_payment_days(e.employee,start_date, end_date, joining_date, relieving_date,holidays))-flt(lwp)
+			if payment_days > 0:
+				new_emp_list.append(e)
+
+	return new_emp_list
+
+def get_payment_days(employee, start_date, end_date, joining_date, relieving_date,holidays):
+	start_date = getdate(start_date)
+	if joining_date:
+		if getdate(start_date) <= joining_date <= getdate(end_date):
+			start_date = joining_date
+		elif joining_date > getdate(end_date):
+			return 0
+
+	end_date = getdate(end_date)
+	if relieving_date:
+		if getdate(start_date) <= relieving_date <= getdate(end_date):
+			end_date = relieving_date
+		elif relieving_date < getdate(start_date):
+			frappe.throw(_("Employee relieved on {0} must be set as 'Left'")
+				.format(relieving_date))
+
+	payment_days = date_diff(end_date, start_date) + 1
+	
+	if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
+		payment_days -= len(holidays)
+	return payment_days
+
+def calculate_lwp(employee,start_date, holidays, working_days):
+	lwp = 0
+	holidays = "','".join(holidays)
+	for d in range(working_days):
+		dt = add_days(cstr(getdate(start_date)), d)
+		leave = frappe.db.sql("""
+			select t1.name, t1.half_day
+			from `tabLeave Application` t1, `tabLeave Type` t2
+			where t2.name = t1.leave_type
+			and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
+			and t1.docstatus < 2
+			and t1.status in ('Approved','Back From Leave')
+			and t1.employee = %(employee)s
+			and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
+			WHEN t2.include_holiday THEN %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
+			END
+			""".format(holidays), {"employee": employee, "dt": dt})
+
+		if leave:
+			lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
+	
+	return lwp
 
 @frappe.whitelist()
 def get_start_end_dates(payroll_frequency, start_date=None, company=None):
@@ -945,7 +1016,7 @@ def get_end_date(start_date, frequency):
 	else:
 		return dict(end_date="")
 
-
+@frappe.whitelist()
 def get_month_details(year, month):
 	ysd = frappe.db.get_value("Fiscal Year", year, "year_start_date")
 	if ysd:
@@ -1025,11 +1096,17 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 		payroll_entry = frappe.get_doc("Payroll Entry", args.payroll_entry)
 		salary_slips_exist_for = get_existing_salary_slips(employees, args)
 		count = 0
+		
+		employee_count = len(employees)
+		existing_count = 0
+		new_count = 0
 
 		for emp in employees:
 			if emp not in salary_slips_exist_for:
 				args.update({"doctype": "Salary Slip", "employee": emp})
-				frappe.get_doc(args).insert()
+				ss = frappe.get_doc(args)
+				ss.insert()
+				# frappe.get_doc(args).insert()
 
 				count += 1
 				if publish_progress:
@@ -1037,7 +1114,12 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 						count * 100 / len(set(employees) - set(salary_slips_exist_for)),
 						title=_("Creating Salary Slips..."),
 					)
-
+				new_count = new_count + 1
+			else:
+				existing_count = existing_count + 1
+		
+		msg = "Employees: " + str(employee_count) + " - " + "Existing Salary Slips: " + str(existing_count) + " - " + "New Salary Slips Created: " + str(new_count)
+		payroll_entry.db_set("mrp_activity_log", msg)
 		payroll_entry.db_set({"status": "Submitted", "salary_slips_created": 1, "error_message": ""})
 
 		if salary_slips_exist_for:
@@ -1048,7 +1130,8 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 				title=_("Message"),
 				indicator="orange",
 			)
-
+			
+		
 	except Exception as e:
 		frappe.db.rollback()
 		log_payroll_failure("creation", payroll_entry, e)
@@ -1164,10 +1247,13 @@ def get_employee_list(filters: frappe._dict) -> list[str]:
 		+ get_joining_relieving_condition(filters.start_date, filters.end_date)
 		+ (
 			"and t2.salary_structure IN %(sal_struct)s "
-			"and t2.payroll_payable_account = %(payroll_payable_account)s "
 			"and %(from_date)s >= t2.from_date"
 		)
 	)
+	
+	if filters.get("payroll_payable_account") and not filters.get("payroll_payable_account") == None:
+		cond += " and t2.payroll_payable_account = %(payroll_payable_account)s"
+
 	emp_list = get_emp_list(sal_struct, cond, filters.end_date, filters.payroll_payable_account)
 	return remove_payrolled_employees(emp_list, filters.start_date, filters.end_date)
 

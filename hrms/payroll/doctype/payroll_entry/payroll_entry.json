@@ -244,8 +244,7 @@
    "fieldname": "payroll_payable_account",
    "fieldtype": "Link",
    "label": "Payroll Payable Account",
-   "options": "Account",
-   "reqd": 1
+   "options": "Account"
   },
   {
    "collapsible": 1,
@@ -327,9 +326,8 @@
   }
  ],
  "icon": "fa fa-cog",
- "is_submittable": 1,
  "links": [],
- "modified": "2023-01-05 17:07:00.372983",
+ "modified": "2023-02-08 14:52:58.129489",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Payroll Entry",
@@ -337,14 +335,12 @@
  "owner": "Administrator",
  "permissions": [
   {
-   "cancel": 1,
    "create": 1,
    "delete": 1,
    "read": 1,
    "report": 1,
    "role": "HR Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   }
  ],

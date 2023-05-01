@@ -2,6 +2,14 @@
 // License: GNU General Public License v3. See license.txt
 
 frappe.ui.form.on("Salary Slip", {
+	/* onload:function(frm){
+		if((cint(frm.doc.__islocal) == 1) && !frm.doc.amended_from){
+			frm.set_value("payroll_frequency",'Monthly')
+			frm.trigger("set_start_end_dates");
+
+		}
+	}, */
+	
 	setup: function(frm) {
 		$.each(["earnings", "deductions"], function(i, table_fieldname) {
 			frm.get_field(table_fieldname).grid.editable_fields = [
@@ -37,9 +45,6 @@ frappe.ui.form.on("Salary Slip", {
 		frm.set_query("employee", function() {
 			return {
 				query: "erpnext.controllers.queries.employee_query",
-				filters: {
-					company: frm.doc.company
-				}
 			};
 		});
 	},
@@ -207,7 +212,40 @@ frappe.ui.form.on("Salary Slip", {
 				}
 			});
 		}
-	}
+	},
+	
+	enable_attendance: function(frm) {
+		frm.events.get_emp_and_working_day_details(frm);
+	},
+	
+	// Leave encashment
+	encash_leave: function(frm) {
+		frm.events.get_emp_and_working_day_details(frm);
+	},
+	
+	// Loan deduction
+	refresh_loan_deduction: function(frm) {
+		frm.events.get_emp_and_working_day_details(frm);
+	},
+	
+	/* set_start_end_dates: function(frm) {
+		if (!frm.doc.salary_slip_based_on_timesheet){
+			frappe.call({
+				method:'erpnext.hr.doctype.payroll_entry.payroll_entry.get_start_end_dates',
+				args:{
+					payroll_frequency: frm.doc.payroll_frequency,
+					start_date: frm.doc.posting_date
+				},
+				callback: function(r){
+					if (r.message){
+						frm.set_value('start_date', r.message.start_date);
+						frm.set_value('end_date', r.message.end_date);
+					}
+				}
+			})
+		}
+	}, */
+	
 });
 
 frappe.ui.form.on('Salary Slip Timesheet', {

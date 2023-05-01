@@ -1,0 +1,28 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 1, 
+ "creation": "2017-09-01 18:13:23.625483", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "favorite": 1, 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "letter_head": "Al Maarifa Lab Supplies LLC", 
+ "modified": "2017-11-08 04:38:19.191331", 
+ "modified_by": "Administrator", 
+ "module": "HR", 
+ "name": "WPS", 
+ "owner": "Administrator", 
+ "ref_doctype": "Salary Slip", 
+ "report_name": "WPS", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "HR User"
+  }, 
+  {
+   "role": "HR Manager"
+  }
+ ]
+}

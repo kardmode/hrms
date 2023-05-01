@@ -15,6 +15,10 @@ from frappe.utils import (
 	get_link_to_form,
 	getdate,
 	nowdate,
+	get_time,
+	time_diff,
+	time_diff_in_seconds,
+	flt
 )
 
 from hrms.hr.doctype.shift_assignment.shift_assignment import has_overlapping_timings
@@ -40,6 +44,10 @@ class Attendance(Document):
 		self.validate_overlapping_shift_attendance()
 		self.validate_employee_status()
 		self.check_leave_record()
+		self.calculate_total_hours()
+		if self.normal_time < 0:
+			frappe.throw(_("Working Time cannot be less than 0, date {0}").format(self.attendance_date))
+
 
 	def on_cancel(self):
 		self.unlink_attendance_from_checkins()
@@ -47,13 +55,16 @@ class Attendance(Document):
 	def validate_attendance_date(self):
 		date_of_joining = frappe.db.get_value("Employee", self.employee, "date_of_joining")
 
+		new_date = add_days(getdate(nowdate()), 45)
+
+
 		# leaves can be marked for future dates
 		if (
 			self.status != "On Leave"
 			and not self.leave_application
-			and getdate(self.attendance_date) > getdate(nowdate())
+			and getdate(self.attendance_date) > new_date
 		):
-			frappe.throw(_("Attendance can not be marked for future dates"))
+			frappe.throw(_("Attendance can not be marked for more than 45 days in the future"))
 		elif date_of_joining and getdate(self.attendance_date) < getdate(date_of_joining):
 			frappe.throw(_("Attendance date can not be less than employee's joining date"))
 
@@ -165,7 +176,136 @@ class Attendance(Document):
 				is_minimizable=True,
 				wide=True,
 			)
+			
+	def calculate_total_hours(self):
+	
+		if self.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			self.arrival_time = "00:00:00"
+			
+		if self.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			self.departure_time = "00:00:00"
+		
+		try:
+			self.departure_time = get_time(self.departure_time ).strftime("%H:%M:%S")
+		except Exception as e:
+			frappe.throw(_("Possible error in departure time {0} for employee {1}: {2}").format(self.departure_time,self.employee, cstr(e)))
+		except ValueError as e:
+			frappe.throw(_("Possible error in departure time {0} for employee {1}: {2}").format(self.departure_time,self.employee, cstr(e)))
+		except:
+			frappe.throw(_("Possible error in departure time {0} for employee {1}: {2}").format(self.departure_time,self.employee))
+		
+		try:
+			self.arrival_time = get_time(self.arrival_time).strftime("%H:%M:%S")
+		except Exception as e:
+			frappe.throw(_("Possible error in arrival time {0} for employee {1}").format(self.arrival_time,self.employee, cstr(e)))
+		except ValueError as e:
+			frappe.throw(_("Possible error in arrival time {0} for employee {1}").format(self.arrival_time,self.employee, cstr(e)))
+		except:
+			frappe.throw(_("Possible error in arrival time {0} for employee {1}").format(self.arrival_time,self.employee))
+			
+		
+		totalworkhours = 0
+		try:
+			totalworkhours = flt(time_diff_in_seconds(self.departure_time,self.arrival_time))/3600
+		except:
+			try:
+				time = time_diff(self.departure_time,self.arrival_time)
+				totalworkhours = flt(time.hour) + flt(time.minute)/60 + flt(time.second)/3600
+			except:
+				frappe.throw(_("Possible error in arrival time {0} or departure time {1} for employee {2}").format(self.arrival_time,self.departure_time,self.employee))
 
+		
+		
+		
+		if totalworkhours < 0:
+			frappe.throw(_("Working time cannot be negative. Please check arrival time {0} or departure time {1} for employee {2} on date {3}").format(self.arrival_time,self.departure_time,self.employee,self.attendance_date))
+		elif totalworkhours > 24:
+			frappe.throw(_("Working time cannot be greater than 24. Please check arrival time {0} or departure time {1} for employee {2} on date {3}").format(self.arrival_time,self.departure_time,self.employee,self.attendance_date))
+
+		self.working_time = totalworkhours
+		
+		if not self.department:
+			self.department = frappe.db.get_value("Employee", self.employee, "department")
+		
+		working_hours = frappe.db.sql("""select working_hours from `tabMRP Working Hours`
+				where %s >= from_date AND %s <= to_date and (department = %s or department = 'All Departments' or ISNULL(NULLIF(department, '')))""", (self.attendance_date,self.attendance_date,self.department))
+
+		if working_hours:
+			self.normal_time = flt(working_hours[0][0])
+		else:
+			self.normal_time = flt(frappe.db.get_single_value("MRP Regulations", "working_hours"))
+		
+		weekends = []
+		weekend_tb = frappe.get_list('MRP Day Selector', ['day'], 
+			filters = {'parent':'MRP Regulations', 'parenttype':'MRP Regulations', 'parentfield' : 'weekends'}, parent_doctype="MRP Regulations")
+			
+		for d in weekend_tb:
+			weekends.append(d.day)
+		
+		weekday_name = get_datetime(self.attendance_date).strftime('%A')
+			
+		self.overtime = 0
+		self.overtime_fridays = 0
+		self.overtime_holidays = 0
+		self.mrp_overtime = 0
+		self.mrp_overtime_type = "Weekdays"
+		
+		if self.status not in ["On Leave","Half Day"]:
+			self.status = 'Present'
+		
+		if len(self.get_holidays_for_employee(self.attendance_date,self.attendance_date)):
+			self.normal_time = 0
+			self.overtime_holidays = flt(totalworkhours) - flt(self.normal_time)
+			self.mrp_overtime = flt(totalworkhours) - flt(self.normal_time)
+			self.mrp_overtime_type = "Holidays"
+		elif weekday_name in weekends:
+			self.normal_time = 0
+			self.overtime_fridays = flt(totalworkhours) - flt(self.normal_time)
+			self.mrp_overtime = flt(totalworkhours) - flt(self.normal_time)
+			self.mrp_overtime_type = "Weekends"
+		else:		
+			if totalworkhours > self.normal_time:
+				self.overtime = flt(totalworkhours) - flt(self.normal_time)
+				self.mrp_overtime = flt(totalworkhours) - flt(self.normal_time)
+				self.mrp_overtime_type = "Weekdays"
+				if self.status == "On Leave":
+					frappe.throw(_("Employee on leave this day but has attendance. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
+
+			elif totalworkhours > 2:
+				self.normal_time = totalworkhours
+				if self.status == "On Leave":
+					frappe.throw(_("Employee on leave this day but has attendance. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
+
+			elif totalworkhours > 0:
+				frappe.throw(_("Work Hours under 2. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
+			elif totalworkhours < 0:
+				frappe.throw(_("Work Hours negative. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
+			else:
+				if self.arrival_time == "00:00:00" and self.departure_time == "00:00:00":
+					self.normal_time = 0
+					self.working_time = 0
+					if self.status != "On Leave":
+						self.status = 'Absent'
+				else:
+					frappe.throw(_("Work Hours equal 0. Please check the time for employee {0}, date {1}, arrival time {2}, departure time {3}").format(self.employee,self.attendance_date,self.arrival_time,self.departure_time))
+
+
+	def get_holidays_for_employee(self, start_date, end_date):
+		holidays = frappe.db.sql("""select t1.holiday_date
+			from `tabHoliday` t1, tabEmployee t2
+			where t1.parent = t2.holiday_list and t2.name = %s
+			and t1.holiday_date between %s and %s""",
+			(self.employee, start_date, end_date))
+			
+		if not holidays:
+			holidays = frappe.db.sql("""select t1.holiday_date
+				from `tabHoliday` t1, `tabHoliday List` t2
+				where t1.parent = t2.name and t2.is_default = 1
+				and t1.holiday_date between %s and %s""", 
+				(start_date, end_date))
+		
+		holidays = [cstr(i[0]) for i in holidays]
+		return holidays
 
 def get_duplicate_attendance_record(employee, attendance_date, shift, name=None):
 	attendance = frappe.qb.DocType("Attendance")

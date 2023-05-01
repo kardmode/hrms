@@ -7,8 +7,10 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_days, cstr, date_diff, getdate
+from frappe.utils import add_days, cstr, date_diff, getdate,get_time
+
 from frappe.utils.csvutils import UnicodeWriter
+from frappe.utils.dateutils import parse_date
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
@@ -44,19 +46,24 @@ def get_template():
 	frappe.response["type"] = "csv"
 	frappe.response["doctype"] = "Attendance"
 
-
 def add_header(w):
-	status = ", ".join(
-		(frappe.get_meta("Attendance").get_field("status").options or "").strip().split("\n")
-	)
-	w.writerow(["Notes:"])
-	w.writerow(["Please do not change the template headings"])
-	w.writerow(["Status should be one of these values: " + status])
-	w.writerow(["If you are overwriting existing attendance records, 'ID' column mandatory"])
-	w.writerow(
-		["ID", "Employee", "Employee Name", "Date", "Status", "Leave Type", "Company", "Naming Series"]
-	)
+	w.writerow(["Employee", "Attendance Date", "Arrival Time", "Departure Time"])
+
+
 	return w
+
+# def add_header(w):
+	# status = ", ".join(
+		# (frappe.get_meta("Attendance").get_field("status").options or "").strip().split("\n")
+	# )
+	# w.writerow(["Notes:"])
+	# w.writerow(["Please do not change the template headings"])
+	# w.writerow(["Status should be one of these values: " + status])
+	# w.writerow(["If you are overwriting existing attendance records, 'ID' column mandatory"])
+	# w.writerow(
+		# ["ID", "Employee", "Employee Name", "Date", "Status", "Leave Type", "Company", "Naming Series"]
+	# )
+	# return w
 
 
 def add_data(w, args):
@@ -172,52 +179,196 @@ def upload():
 	rows = read_csv_content(frappe.local.uploaded_file)
 	if not rows:
 		frappe.throw(_("Please select a csv file"))
-	frappe.enqueue(import_attendances, rows=rows, now=True if len(rows) < 200 else False)
-
+	# frappe.enqueue(import_attendances, rows=rows, now=True if len(rows) < 400 else False)
+	import_attendances(rows)
 
 def import_attendances(rows):
 	def remove_holidays(rows):
 		rows = [row for row in rows if row[4] != "Holiday"]
 		return rows
-
+		
 	from frappe.modules import scrub
-
 	rows = list(filter(lambda x: x and any(x), rows))
-	columns = [scrub(f) for f in rows[4]]
-	columns[0] = "name"
-	columns[3] = "attendance_date"
-	rows = rows[5:]
+	if not rows:
+		msg = [_("Please select a csv file")]
+		return {"messages": msg, "error": msg}
+	#fixme error when importing certain header
+	#columns = [scrub(f) for f in rows[0]]
+
+	columns = ["employee","attendance_date","arrival_time","departure_time"]
+
+	rows = rows[1:]
 	ret = []
 	error = False
-
-	rows = remove_holidays(rows)
+	started = False
+	
+	import json
+	params = json.loads(frappe.form_dict.get("params") or '{}')
+	
+	if not params.get("import_settings"):
+		import_settings = "default"
+	else:
+		import_settings = params.get("import_settings")
+		
+	# rows = remove_holidays(rows)
 
 	from frappe.utils.csvutils import check_record, import_doc
 
 	for i, row in enumerate(rows):
-		if not row:
-			continue
-		row_idx = i + 5
+		if not row: continue
+		started = True
+		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
 
 		d["doctype"] = "Attendance"
-		if d.name:
-			d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
+		
+		
+		date_error = False
+		date_object = d.attendance_date
+		
+		try:
+			parse_date(d.attendance_date)
+
+		except Exception as e:
+			date_error = True
+			ret.append('Date Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+		except ValueError as e:
+			date_error = True
+			ret.append('Date Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+		except:
+			date_error = True
+			ret.append('Date Error for row (#%d) %s' % (row_idx+1,len(row)>1 and row[1] or ""))
+		
+			try:
+				from datetime import datetime
+				date_object = datetime.strptime(date_str, '%d/%m/%Y').date()
+			except:
+				date_error = True
+				ret.append('Date Error for row (#%d) %s' % (row_idx+1,len(row)>1 and row[1] or ""))
+		
+
+		if date_error == True:
+			if import_settings != "ignore":
+				error = True
+			continue
+			
+		d.attendance_date = date_object
+		
+		formatted_attendance_date = getdate(parse_date(d.attendance_date))
+		attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",(d.employee, formatted_attendance_date),as_dict=True)		
+		company = frappe.db.sql("""select company from `tabEmployee` where employee = %s""",(d.employee),as_dict=True)		
 
 		try:
-			check_record(d)
-			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=True))
-			frappe.publish_realtime("import_attendance", dict(progress=i, total=len(rows)))
-		except AttributeError:
-			pass
+			d["company"] = company[0].company
+			
 		except Exception as e:
 			error = True
-			ret.append("Error for row (#%d) %s : %s" % (row_idx, len(row) > 1 and row[1] or "", cstr(e)))
-			frappe.errprint(frappe.get_traceback())
+			ret.append('Error for row (#%d) %s. No Company Set For Employee' % (row_idx+1,len(row)>1 and row[1] or ""))	
+
+		if import_settings == "ignore":
+		
+			frappe.publish_realtime('import_attendance', dict(
+						progress=i,
+						total=len(rows)
+					))
+					
+
+			if attendance:
+				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
+
+				# ret.append('Ignored row (#%d) %s : %s - %s' % (row_idx+1,
+					# len(row)>1 and row[1] or "", cstr(d.employee),link))
+			else:
+				try:
+					check_record(d)
+					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+					
+				except Exception as e:
+					# error = True
+					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+					frappe.errprint(frappe.get_traceback())
+				
+				
+		elif import_settings == "update":
+		
+			frappe.publish_realtime('import_attendance', dict(
+					progress=i,
+					total=len(rows)
+				))
+				
+			if attendance:
+				d["docstatus"] = attendance[0].docstatus
+				d["name"] = attendance[0].name
+				
+			try:
+				check_record(d)
+				ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+			except Exception as e:
+				error = True
+				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+				# frappe.errprint(frappe.get_traceback())
+		else:
+			if attendance:
+				error = True
+				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
+				ret.append('Error for row (#%d) %s : %s - %s. Attendance Date %s Already Marked or Check Spreadsheet For Duplicates' % (row_idx+1,
+					len(row)>1 and row[1] or "", cstr(d.employee),str(d.attendance_date),link))
+			else:
+			
+				frappe.publish_realtime('import_attendance', dict(
+					progress=i,
+					total=len(rows)
+				))
+				
+				try:
+					check_record(d)
+					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+				except Exception as e:
+					error = True
+					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+					frappe.errprint(frappe.get_traceback())
+	
+	if not started:
+		error = True
+		ret.append('Error reading csv file')
 
 	if error:
 		frappe.db.rollback()
 	else:
 		frappe.db.commit()
+		
+	frappe.publish_realtime('import_attendance', dict(
+		messages=ret,
+		error=error
+	))
+	
+@frappe.whitelist()
+def update_attendance(start_date,end_date):
 
-	frappe.publish_realtime("import_attendance", dict(messages=ret, error=error))
+	if not start_date or not end_date:
+		frappe.throw(_("Please enter both start date and end date"))
+		
+	attendances = frappe.db.sql("""select name from `tabAttendance` where attendance_date between %s and %s and docstatus < 2""",
+		(start_date, end_date), as_dict=1)
+	
+	summary = ""
+			
+	
+	for att in attendances:
+		d = frappe.get_doc("Attendance", att.name)
+		
+		# if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			# d.arrival_time = "00:00:00"
+			
+		# if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			# d.departure_time = "00:00:00"
+			
+		# d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
+		# d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
+
+		d.save()
+		
+		new_link = '<a href="#Form/Attendance/{0}">{0} - {1} - {2} - {3}</a><br>'.format(d.name,d.employee,d.employee_name,d.attendance_date)
+		summary = summary + new_link
+	
+	return summary
