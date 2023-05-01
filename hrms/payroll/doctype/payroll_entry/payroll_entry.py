@@ -477,7 +477,7 @@ class PayrollEntry(Document):
 				}
 				"""
 				for employee, employee_details in self.employee_based_payroll_payable_entries.items():
-					payable_amount = employee_details.get("earnings") - employee_details.get("deductions")
+					payable_amount = employee_details.get("earnings") - (employee_details.get("deductions") or 0)
 
 					accounting_entry, payable_amount = self.get_accounting_entries_and_payable_amount(
 						payroll_payable_account,
@@ -661,7 +661,7 @@ class PayrollEntry(Document):
 					if statistical_component != 1:
 						if process_payroll_accounting_entry_based_on_employee:
 							self.set_employee_based_payroll_payable_entries(
-								"deduction", salary_slip.employee, sal_detail.amount
+								"deductions", salary_slip.employee, sal_detail.amount
 							)
 
 						salary_slip_total -= sal_detail.amount
@@ -696,7 +696,9 @@ class PayrollEntry(Document):
 
 		if self.employee_based_payroll_payable_entries:
 			for employee, employee_details in self.employee_based_payroll_payable_entries.items():
-				je_payment_amount = employee_details["earnings"] - employee_details["deduction"]
+				je_payment_amount = employee_details.get("earnings") - (
+					employee_details.get("deductions") or 0
+				)
 				exchange_rate, amount = self.get_amount_and_exchange_rate_for_journal_entry(
 					self.payment_account, je_payment_amount, company_currency, currencies
 				)
