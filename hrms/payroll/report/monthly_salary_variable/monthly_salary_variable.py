@@ -77,7 +77,7 @@ def execute(filters=None):
 	
 def get_columns(salary_slips):
 	columns = [
-		_("Employee") + ":Link/Employee:100", _("Employee Name") + "::180", 
+		_("Employee") + ":Link/Employee:100", _("Employee Name") + "::150", 
 		_("Work Permit ID") + "::100", _("MOL ID") + "::100", _("Emirates ID") + "::150", 
 		_("Agent") + ":Link/MRP Payroll Agent:150", _("Agent Reference ID") + "::150"
 	]
@@ -90,9 +90,9 @@ def get_columns(salary_slips):
 		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]), as_dict=1):
 		salary_components[component.type].append(component.salary_component)
 	
-	columns = columns +	["Leave Without Pay::120"]
+	columns = columns +	["Leave Without Pay::100"]
 
-	columns = columns +	["Basic Pay:Currency:120", "Variable Pay:Currency:120", "Total Pay:Currency:120"]
+	columns = columns +	["Basic Pay:Currency:100", "Variable Pay:Currency:100", "Total Pay:Currency:100"]
 
 	
 	
