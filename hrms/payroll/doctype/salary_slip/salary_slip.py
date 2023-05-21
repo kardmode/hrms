@@ -1285,13 +1285,8 @@ class SalarySlip(TransactionBase):
 		)[0]
 
 		# remove 0 valued components that have been updated later
-<<<<<<< HEAD
-		# if component_row.amount == 0:
+		# if component_row.amount == 0 and remove_if_zero_valued:
 			# self.remove(component_row)
-=======
-		if component_row.amount == 0 and remove_if_zero_valued:
-			self.remove(component_row)
->>>>>>> f4a9afa79aabb0aa71cc112bac5264bb7267d46b
 
 	def set_precision_for_component_amounts(self):
 		for component_type in ("earnings", "deductions"):
