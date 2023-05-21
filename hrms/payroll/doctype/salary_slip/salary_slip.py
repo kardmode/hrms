@@ -1006,12 +1006,7 @@ class SalarySlip(TransactionBase):
 				remove_if_zero_valued = frappe.get_cached_value(
 					"Salary Component", struct_row.salary_component, "remove_if_zero_valued"
 				)
-			elif amount is not None:
-				default_amount = self.eval_condition_and_formula(struct_row, default_data)
-				self.update_component_row(
-					struct_row, amount, component_type, data=data, default_amount=default_amount
-				)
-
+				
 				if amount or struct_row.amount_based_on_formula:
 					default_amount = self.eval_condition_and_formula(struct_row, self.default_data)
 
