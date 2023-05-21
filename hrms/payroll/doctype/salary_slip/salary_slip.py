@@ -1001,16 +1001,29 @@ class SalarySlip(TransactionBase):
 					self.default_data[struct_row.abbr] = amount
 					self.data[struct_row.abbr] = flt(payment_days_amount, struct_row.precision("amount"))
 
-			elif amount or struct_row.amount_based_on_formula and amount is not None:
-				default_amount = self.eval_condition_and_formula(struct_row, self.default_data)
-				self.update_component_row(
-					struct_row, amount, component_type, data=self.data, default_amount=default_amount
+			else:
+				default_amount = 0
+				remove_if_zero_valued = frappe.get_cached_value(
+					"Salary Component", struct_row.salary_component, "remove_if_zero_valued"
 				)
 			elif amount is not None:
 				default_amount = self.eval_condition_and_formula(struct_row, default_data)
 				self.update_component_row(
 					struct_row, amount, component_type, data=data, default_amount=default_amount
 				)
+
+				if amount or struct_row.amount_based_on_formula:
+					default_amount = self.eval_condition_and_formula(struct_row, self.default_data)
+
+				if amount is not None:
+					self.update_component_row(
+						struct_row,
+						amount,
+						component_type,
+						data=self.data,
+						default_amount=default_amount,
+						remove_if_zero_valued=remove_if_zero_valued,
+					)
 
 	def get_data_for_eval(self):
 		"""Returns data for evaluating formula"""
@@ -1191,6 +1204,7 @@ class SalarySlip(TransactionBase):
 		is_recurring=0,
 		data=None,
 		default_amount=None,
+		remove_if_zero_valued=None,
 	):
 		component_row = None
 		for d in self.get(component_type):
@@ -1217,7 +1231,7 @@ class SalarySlip(TransactionBase):
 			)
 
 		if not component_row:
-			# if not amount:
+			# if not (amount or default_amount) and remove_if_zero_valued:
 				# return
 
 			component_row = self.append(component_type)
@@ -1257,20 +1271,27 @@ class SalarySlip(TransactionBase):
 
 		component_row.amount = amount
 
-		self.update_component_amount_based_on_payment_days(component_row)
+		self.update_component_amount_based_on_payment_days(component_row, remove_if_zero_valued)
 
 		if data:
 			data[component_row.abbr] = component_row.amount
 
-	def update_component_amount_based_on_payment_days(self, component_row):
+	def update_component_amount_based_on_payment_days(
+		self, component_row, remove_if_zero_valued=None
+	):
 		joining_date, relieving_date = self.get_joining_and_relieving_dates()
 		component_row.amount = self.get_amount_based_on_payment_days(
 			component_row, joining_date, relieving_date
 		)[0]
 
 		# remove 0 valued components that have been updated later
+<<<<<<< HEAD
 		# if component_row.amount == 0:
 			# self.remove(component_row)
+=======
+		if component_row.amount == 0 and remove_if_zero_valued:
+			self.remove(component_row)
+>>>>>>> f4a9afa79aabb0aa71cc112bac5264bb7267d46b
 
 	def set_precision_for_component_amounts(self):
 		for component_type in ("earnings", "deductions"):

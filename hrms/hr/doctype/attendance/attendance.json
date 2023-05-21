@@ -204,7 +204,7 @@
  "icon": "fa fa-ok",
  "idx": 1,
  "links": [],
- "modified": "2023-02-08 13:18:49.881439",
+ "modified": "2023-05-02 16:38:11.017001",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Attendance",
@@ -251,5 +251,6 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "employee_name"
+ "title_field": "employee_name",
+ "track_changes": 1
 }
