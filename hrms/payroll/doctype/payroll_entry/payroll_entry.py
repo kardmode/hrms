@@ -20,7 +20,8 @@ from frappe.utils import (
 	flt,
 	get_link_to_form,
 	getdate,
-	cstr
+	cstr,
+	add_months
 )
 
 import erpnext
@@ -984,7 +985,14 @@ def get_start_end_dates(payroll_frequency, start_date=None, company=None):
 		else:
 			start_date = m["month_start_date"]
 			end_date = m["month_end_date"]
-
+			
+	if payroll_frequency == "Quarterly":
+		fiscal_year = get_fiscal_year(start_date, company=company)[0]
+		month = "%02d" % getdate(start_date).month
+		m = get_month_details(fiscal_year, month)
+		start_date = m["month_start_date"]
+		end_date = add_months(start_date, 3)
+		
 	if payroll_frequency == "Weekly":
 		end_date = add_days(start_date, 6)
 
