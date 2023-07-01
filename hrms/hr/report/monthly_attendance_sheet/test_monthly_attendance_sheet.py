@@ -21,7 +21,8 @@ test_dependencies = ["Shift Type"]
 
 class TestMonthlyAttendanceSheet(FrappeTestCase):
 	def setUp(self):
-		self.employee = make_employee("test_employee@example.com", company="_Test Company")
+		self.company = "_Test Company"
+		self.employee = make_employee("test_employee@example.com", company=self.company)
 		frappe.db.delete("Attendance")
 
 		date = getdate()
@@ -33,8 +34,6 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 	def test_monthly_attendance_sheet_report(self):
 		previous_month_first = get_first_day_for_prev_month()
 
-		company = frappe.db.get_value("Employee", self.employee, "company")
-
 		# mark different attendance status on first 3 days of previous month
 		mark_attendance(self.employee, previous_month_first, "Absent")
 		mark_attendance(self.employee, previous_month_first + relativedelta(days=1), "Present")
@@ -44,7 +43,7 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 			}
 		)
 		report = execute(filters=filters)
@@ -64,7 +63,6 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_detailed_view(self):
 		previous_month_first = get_first_day_for_prev_month()
-		company = frappe.db.get_value("Employee", self.employee, "company")
 
 		# attendance with shift
 		mark_attendance(self.employee, previous_month_first, "Absent", "Day Shift")
@@ -80,7 +78,7 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 			}
 		)
 		report = execute(filters=filters)
@@ -101,7 +99,6 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_single_shift_with_leaves_in_detailed_view(self):
 		previous_month_first = get_first_day_for_prev_month()
-		company = frappe.db.get_value("Employee", self.employee, "company")
 
 		# attendance with shift
 		mark_attendance(self.employee, previous_month_first, "Absent", "Day Shift")
@@ -116,7 +113,7 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 			}
 		)
 		report = execute(filters=filters)
@@ -131,9 +128,31 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 		self.assertEqual(day_shift_row[3], "L")  # leave on the 3rd day
 
 	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	def test_single_leave_record(self):
+		previous_month_first = get_first_day_for_prev_month()
+
+		# attendance without shift
+		mark_attendance(self.employee, previous_month_first, "On Leave")
+
+		filters = frappe._dict(
+			{
+				"month": previous_month_first.month,
+				"year": previous_month_first.year,
+				"company": self.company,
+			}
+		)
+		report = execute(filters=filters)
+
+		# single row with leave record
+		self.assertEqual(len(report[1]), 1)
+		row = report[1][0]
+
+		self.assertIsNone(row["shift"])
+		self.assertEqual(row[1], "L")
+
+	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_summarized_view(self):
 		previous_month_first = get_first_day_for_prev_month()
-		company = frappe.db.get_value("Employee", self.employee, "company")
 
 		# attendance with shift
 		mark_attendance(self.employee, previous_month_first, "Absent", "Day Shift")
@@ -160,7 +179,7 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 				"summarized_view": 1,
 			}
 		)
@@ -183,7 +202,6 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_attendance_with_group_by_filter(self):
 		previous_month_first = get_first_day_for_prev_month()
-		company = frappe.db.get_value("Employee", self.employee, "company")
 
 		# attendance with shift
 		mark_attendance(self.employee, previous_month_first, "Absent", "Day Shift")
@@ -199,7 +217,7 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 				"group_by": "Department",
 			}
 		)
@@ -223,9 +241,8 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 	def test_attendance_with_employee_filter(self):
 		previous_month_first = get_first_day_for_prev_month()
 
-		company = frappe.db.get_value("Employee", self.employee, "company")
-		employee2 = make_employee("test_employee2@example.com", company="_Test Company")
-		employee3 = make_employee("test_employee3@example.com", company="_Test Company")
+		employee2 = make_employee("test_employee2@example.com", company=self.company)
+		employee3 = make_employee("test_employee3@example.com", company=self.company)
 
 		# mark different attendance status on first 3 days of previous month for employee1
 		mark_attendance(self.employee, previous_month_first, "Absent")
@@ -246,7 +263,7 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 				"employee": self.employee,
 			}
 		)
@@ -270,9 +287,8 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 	def test_attendance_with_employee_filter_and_summarized_view(self):
 		previous_month_first = get_first_day_for_prev_month()
 
-		company = frappe.db.get_value("Employee", self.employee, "company")
-		employee2 = make_employee("test_employee2@example.com", company="_Test Company")
-		employee3 = make_employee("test_employee3@example.com", company="_Test Company")
+		employee2 = make_employee("test_employee2@example.com", company=self.company)
+		employee3 = make_employee("test_employee3@example.com", company=self.company)
 
 		# mark different attendance status on first 3 days of previous month for employee1
 		mark_attendance(self.employee, previous_month_first, "Absent")
@@ -293,7 +309,7 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 				"employee": self.employee,
 				"summarized_view": 1,
 			}
@@ -323,12 +339,11 @@ class TestMonthlyAttendanceSheet(FrappeTestCase):
 		# execute report without attendance record
 		previous_month_first = get_first_day_for_prev_month()
 
-		company = frappe.db.get_value("Employee", self.employee, "company")
 		filters = frappe._dict(
 			{
 				"month": previous_month_first.month,
 				"year": previous_month_first.year,
-				"company": company,
+				"company": self.company,
 				"group_by": "Department",
 			}
 		)

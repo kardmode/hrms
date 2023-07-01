@@ -146,17 +146,25 @@ def update_to_date_in_work_history(employee, cancel):
 
 @frappe.whitelist()
 def get_employee_field_property(employee, fieldname):
-	if employee and fieldname:
-		field = frappe.get_meta("Employee").get_field(fieldname)
-		value = frappe.db.get_value("Employee", employee, fieldname)
-		options = field.options
-		if field.fieldtype == "Date":
-			value = formatdate(value)
-		elif field.fieldtype == "Datetime":
-			value = format_datetime(value)
-		return {"value": value, "datatype": field.fieldtype, "label": field.label, "options": options}
-	else:
-		return False
+	if not (employee and fieldname):
+		return
+
+	field = frappe.get_meta("Employee").get_field(fieldname)
+	if not field:
+		return
+
+	value = frappe.db.get_value("Employee", employee, fieldname)
+	if field.fieldtype == "Date":
+		value = formatdate(value)
+	elif field.fieldtype == "Datetime":
+		value = format_datetime(value)
+
+	return {
+		"value": value,
+		"datatype": field.fieldtype,
+		"label": field.label,
+		"options": field.options,
+	}
 
 
 def validate_dates(doc, from_date, to_date):
@@ -635,6 +643,9 @@ def get_previous_claimed_amount(employee, payroll_period, non_pro_rata=False, co
 
 
 def share_doc_with_approver(doc, user):
+	if not user:
+		return
+
 	# if approver does not have permissions, share
 	if not frappe.has_permission(doc=doc, ptype="submit", user=user):
 		frappe.share.add_docshare(
