@@ -518,26 +518,6 @@ class SalarySlip(TransactionBase):
 		daily_wages_fraction_for_half_day = (
 			flt(frappe.db.get_value("Payroll Settings", None, "daily_wages_fraction_for_half_day")) or 0.5
 		)
-		
-		# for d in range(working_days):
-			# dt = add_days(cstr(getdate(self.start_date)), d)
-			# leave = frappe.db.sql("""
-				# select t1.name, t1.half_day
-				# from `tabLeave Application` t1, `tabLeave Type` t2
-				# where t2.name = t1.leave_type
-				# and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
-				# and t1.docstatus < 2
-				# and t1.status in ('Approved','Back From Leave')
-				# and t1.employee = %(employee)s
-				# and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
-				# WHEN t2.include_holiday THEN %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
-				# END
-				# """.format(holidays), {"employee": self.employee, "dt": dt})
-
-			# if leave:
-				# lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
-		
-		# return lwp
 
 		for d in working_days_list:
 			if relieving_date and d > relieving_date:
@@ -1643,12 +1623,12 @@ class SalarySlip(TransactionBase):
 			total_working_days = 30
 
 			additional_amount = flt(
-				(flt(row.additional_amount) * flt(self.payment_days) / cint(self.total_working_days)),
+				(flt(row.additional_amount) * flt(payment_days) / cint(total_working_days)),
 				row.precision("additional_amount"),
 			)
 			amount = (
 				flt(
-					(flt(row.default_amount) * flt(self.payment_days) / cint(self.total_working_days)),
+					(flt(row.default_amount) * flt(payment_days) / cint(total_working_days)),
 					row.precision("amount"),
 				)
 				+ additional_amount
@@ -2374,6 +2354,26 @@ def eval_tax_slab_condition(condition, eval_globals=None, eval_locals=None):
 def get_lwp_or_ppl_for_date(date, employee, holidays):
 	LeaveApplication = frappe.qb.DocType("Leave Application")
 	LeaveType = frappe.qb.DocType("Leave Type")
+	
+	# for d in range(working_days):
+			# dt = add_days(cstr(getdate(self.start_date)), d)
+			# leave = frappe.db.sql("""
+				# select t1.name, t2.is_ppl, t2.fraction_of_daily_salary_per_leave, t1.half_day
+				# from `tabLeave Application` t1, `tabLeave Type` t2
+				# where t2.name = t1.leave_type
+				# and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
+				# and t1.docstatus < 2
+				# and t1.status in ('Approved','Back From Leave')
+				# and t1.employee = %(employee)s
+				# and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
+				# WHEN t2.include_holiday THEN %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
+				# END
+				# """.format(holidays), {"employee": self.employee, "dt": dt})
+
+			# if leave:
+				# lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
+		
+		# return lwp
 
 	is_half_day = (
 		frappe.qb.terms.Case()
@@ -2398,9 +2398,9 @@ def get_lwp_or_ppl_for_date(date, employee, holidays):
 			(is_half_day),
 		)
 		.where(
-			(((LeaveType.is_lwp == 1) | (LeaveType.is_ppl == 1)))
-			& (LeaveApplication.docstatus == 1)
-			& (LeaveApplication.status == "Approved")
+			(((LeaveType.is_lwp == 1) | (LeaveType.is_ppl == 1) | (LeaveType.is_present_during_period == 0)))
+			& (LeaveApplication.docstatus < 2)
+			& ((LeaveApplication.status == "Approved") | (LeaveApplication.status == "Back From Leave"))
 			& (LeaveApplication.employee == employee)
 			& ((LeaveApplication.salary_slip.isnull()) | (LeaveApplication.salary_slip == ""))
 			& ((LeaveApplication.from_date <= date) & (date <= LeaveApplication.to_date))
@@ -2456,6 +2456,8 @@ def throw_error_message(row, error, title, description=None):
 
 def date_range(start=None, end=None):
 	if start and end:
+		from datetime import timedelta
+
 		delta = end - start  # as timedelta
 		days = [str(start + timedelta(days=i)) for i in range(delta.days + 1)]
 		return days
@@ -2484,7 +2486,7 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 				# .format(relieving_date))
 	
 	leave = frappe.db.sql("""
-		select t1.from_date,t1.to_date,t1.leave_type,t2.is_paid_in_advance,t2.is_present_during_period
+		select t1.name, t1.from_date,t1.to_date,t1.leave_type,t2.is_paid_in_advance,t2.is_present_during_period
 		from `tabLeave Application` t1, `tabLeave Type` t2
 		where 
 		t2.name = t1.leave_type
@@ -2496,6 +2498,9 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 		ORDER BY to_date DESC LIMIT 2""", (employee, dt), as_dict=True)
 	# frappe.errprint(leave)
 	
+	from datetime import timedelta
+	from math import ceil
+
 	if leave:
 		if leave[0].from_date < getdate(start_date) - timedelta(days=30):
 			leave_calculation = "No leave applications found for this period. Please approve a leave application for this employee." + "<br>"
@@ -2547,7 +2552,7 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 	
 	payment_days = date_diff(end_date, start_date)+1
 	leavedaysdue = flt(payment_days)/365 * 30	
-	leavedaysdue = math.ceil(leavedaysdue)
+	leavedaysdue = ceil(leavedaysdue)
 	if leavedaysdue < 30 and leavedaysdue + 2 >= 30:
 		leavedaysdue = 30
 	
@@ -2561,7 +2566,11 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 		leave_type_text = "Away for Leave"
 	else:
 		leave_type_text = "Present for Leave"
-	header_text = str(leave[0].leave_type) + " - Paid In Advance - " + str(leave_type_text)
+	
+	la_link = frappe.utils.get_link_to_form("Leave Application", leave[0].name)
+
+	
+	header_text = str(leave[0].leave_type) + " - Paid In Advance - " + str(leave_type_text) + " - " + str(la_link)
 	joiningtext = "From Date: " + formatdate(start_date) + " - To Date: " + formatdate(end_date) + " - Total Working Days: " + str(payment_days) 
 	workingdaystext =  "Leave Days Due (Rounded): " + str(leavedaysdue)
 	leavetext = "30 Days Leave Accumulated Every Year"
@@ -2569,7 +2578,7 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 	
 	return leaveadvance,leave_calculation, encash_leave
 
-
+@frappe.whitelist()			
 def custom_get_loan_deductions(start_date,end_date,employee):
 		it = start_date
 		dt = end_date
