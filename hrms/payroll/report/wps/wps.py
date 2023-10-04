@@ -47,7 +47,7 @@ def execute(filters=None):
 		
 		emp_details = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
 		
-		if filters.get("company") == "Science Lab Inc":
+		if filters.get("free_zone") == 1:
 			if emp_details:
 				payroll_agent_id = emp_details[0].payroll_agent_id
 				
@@ -160,7 +160,7 @@ def execute(filters=None):
 		
 	import time
 
-	if filters.get("company") == "Science Lab Inc":
+	if filters.get("free_zone") == 1:
 		row += [default_payroll_agent]
 		row += ["360"]
 		
@@ -208,7 +208,7 @@ def execute(filters=None):
 def get_columns(filters,salary_slips):
 	
 	# 7 columns
-	if filters.get("company") == "Science Lab Inc":
+	if filters.get("free_zone") == 1:
 		columns = [
 			_("Type") + "::75", "Customer No::140","Customer Name::150","Emp Ref No::80","Start Date::80",
 		"End Date::80","Days on Leave::50"
@@ -230,7 +230,7 @@ def get_columns(filters,salary_slips):
 		salary_components[component.type].append(component.salary_component)
 	
 	# 11 columns
-	if filters.get("company") == "Science Lab Inc":
+	if filters.get("free_zone") == 1:
 		columns = columns +	["Fixed Salary::100", "Variable Salary::100","Total Amount::100","::100"]
 	else:
 		# 11 columns

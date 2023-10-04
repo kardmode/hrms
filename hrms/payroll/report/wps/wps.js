@@ -38,7 +38,12 @@ frappe.query_reports["WPS"] = {
 			"fieldtype": "Check",
 			"default": 0,
 		},
-		
+		{
+			"fieldname":"free_zone",
+			"label": __("Free Zone"),
+			"fieldtype": "Check",
+			"default": 1,
+		},
 
 	]
 }
