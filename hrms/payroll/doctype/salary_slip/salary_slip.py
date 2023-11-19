@@ -1817,8 +1817,6 @@ class SalarySlip(TransactionBase):
 		loan_details = frappe.get_all(
 			"Loan",
 			fields=["name", "interest_income_account", "loan_account", "loan_type", "is_term_loan"],
-<<<<<<< HEAD
-=======
 			filters={
 				"applicant": self.employee,
 				"docstatus": 1,
@@ -1826,7 +1824,6 @@ class SalarySlip(TransactionBase):
 				"company": self.company,
 				"status": ("!=", "Closed"),
 			},
->>>>>>> 3d50f15261f6078f4690d8fb774ca600dfdc57f6
 		)
 
 		if loan_details:
@@ -2491,7 +2488,75 @@ def throw_error_message(row, error, title, description=None):
 
 	frappe.throw(message, title=title)
 
-<<<<<<< HEAD
+def _safe_eval(code: str, eval_globals: dict | None = None, eval_locals: dict | None = None):
+	"""Old version of safe_eval from framework.
+
+	Note: current frappe.safe_eval transforms code so if you have nested
+	iterations with too much depth then it can hit recursion limit of python.
+	There's no workaround for this and people need large formulas in some
+	countries so this is alternate implementation for that.
+
+	WARNING: DO NOT use this function anywhere else outside of this file.
+	"""
+	code = unicodedata.normalize("NFKC", code)
+
+	_check_attributes(code)
+
+	whitelisted_globals = {"int": int, "float": float, "long": int, "round": round}
+	if not eval_globals:
+		eval_globals = {}
+
+	eval_globals["__builtins__"] = {}
+	eval_globals.update(whitelisted_globals)
+	return eval(code, eval_globals, eval_locals)  # nosemgrep
+
+
+def _check_attributes(code: str) -> None:
+	import ast
+
+	from frappe.utils.safe_exec import UNSAFE_ATTRIBUTES
+
+	unsafe_attrs = set(UNSAFE_ATTRIBUTES).union(["__"]) - {"format"}
+
+	for attribute in unsafe_attrs:
+		if attribute in code:
+			raise SyntaxError(f'Illegal rule {frappe.bold(code)}. Cannot use "{attribute}"')
+
+	BLOCKED_NODES = (ast.NamedExpr,)
+
+	tree = ast.parse(code, mode="eval")
+	for node in ast.walk(tree):
+		if isinstance(node, BLOCKED_NODES):
+			raise SyntaxError(f"Operation not allowed: line {node.lineno} column {node.col_offset}")
+		if (
+			isinstance(node, ast.Attribute)
+			and isinstance(node.attr, str)
+			and node.attr in UNSAFE_ATTRIBUTES
+		):
+			raise SyntaxError(f'Illegal rule {frappe.bold(code)}. Cannot use "{node.attr}"')
+
+
+@frappe.whitelist()
+def enqueue_email_salary_slips(names) -> None:
+	"""enqueue bulk emailing salary slips"""
+	import json
+
+	if isinstance(names, str):
+		names = json.loads(names)
+
+	frappe.enqueue("hrms.payroll.doctype.salary_slip.salary_slip.email_salary_slips", names=names)
+	frappe.msgprint(
+		_("Salary slip emails have been enqueued for sending. Check {0} for status.").format(
+			f"""<a href='{frappe.utils.get_url_to_list("Email Queue")}' target='blank'>Email Queue</a>"""
+		)
+	)
+
+
+def email_salary_slips(names) -> None:
+	for name in names:
+		salary_slip = frappe.get_doc("Salary Slip", name)
+		salary_slip.email_salary_slip()
+
 def date_range(start=None, end=None):
 	if start and end:
 		from datetime import timedelta
@@ -2618,94 +2683,22 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 
 @frappe.whitelist()			
 def custom_get_loan_deductions(start_date,end_date,employee):
-		it = start_date
-		dt = end_date
-		loandata = frappe.db.sql("""
-				select t1.transaction_amount
-				from `tabMRP Loan Transaction` t1,`tabMRP Loan Type` t2
-				where
-				t1.parent = %s
-				and t1.transaction_date >= %s 
-				and t1.transaction_date <= %s
-				and (t2.name = t1.transaction_type and t2.type = 'Deduction' and t2.affect_doctype = 'Salary Slip')
-				""", (employee,it,dt), as_dict=True)
-			
-	
-		total_loan_deduction = 0
-		if loandata:
-			for d in loandata:
-				total_loan_deduction += d.transaction_amount
+	it = start_date
+	dt = end_date
+	loandata = frappe.db.sql("""
+			select t1.transaction_amount
+			from `tabMRP Loan Transaction` t1,`tabMRP Loan Type` t2
+			where
+			t1.parent = %s
+			and t1.transaction_date >= %s 
+			and t1.transaction_date <= %s
+			and (t2.name = t1.transaction_type and t2.type = 'Deduction' and t2.affect_doctype = 'Salary Slip')
+			""", (employee,it,dt), as_dict=True)
 		
-		return total_loan_deduction
 
-=======
-
-def _safe_eval(code: str, eval_globals: dict | None = None, eval_locals: dict | None = None):
-	"""Old version of safe_eval from framework.
-
-	Note: current frappe.safe_eval transforms code so if you have nested
-	iterations with too much depth then it can hit recursion limit of python.
-	There's no workaround for this and people need large formulas in some
-	countries so this is alternate implementation for that.
-
-	WARNING: DO NOT use this function anywhere else outside of this file.
-	"""
-	code = unicodedata.normalize("NFKC", code)
-
-	_check_attributes(code)
-
-	whitelisted_globals = {"int": int, "float": float, "long": int, "round": round}
-	if not eval_globals:
-		eval_globals = {}
-
-	eval_globals["__builtins__"] = {}
-	eval_globals.update(whitelisted_globals)
-	return eval(code, eval_globals, eval_locals)  # nosemgrep
-
-
-def _check_attributes(code: str) -> None:
-	import ast
-
-	from frappe.utils.safe_exec import UNSAFE_ATTRIBUTES
-
-	unsafe_attrs = set(UNSAFE_ATTRIBUTES).union(["__"]) - {"format"}
-
-	for attribute in unsafe_attrs:
-		if attribute in code:
-			raise SyntaxError(f'Illegal rule {frappe.bold(code)}. Cannot use "{attribute}"')
-
-	BLOCKED_NODES = (ast.NamedExpr,)
-
-	tree = ast.parse(code, mode="eval")
-	for node in ast.walk(tree):
-		if isinstance(node, BLOCKED_NODES):
-			raise SyntaxError(f"Operation not allowed: line {node.lineno} column {node.col_offset}")
-		if (
-			isinstance(node, ast.Attribute)
-			and isinstance(node.attr, str)
-			and node.attr in UNSAFE_ATTRIBUTES
-		):
-			raise SyntaxError(f'Illegal rule {frappe.bold(code)}. Cannot use "{node.attr}"')
-
-
-@frappe.whitelist()
-def enqueue_email_salary_slips(names) -> None:
-	"""enqueue bulk emailing salary slips"""
-	import json
-
-	if isinstance(names, str):
-		names = json.loads(names)
-
-	frappe.enqueue("hrms.payroll.doctype.salary_slip.salary_slip.email_salary_slips", names=names)
-	frappe.msgprint(
-		_("Salary slip emails have been enqueued for sending. Check {0} for status.").format(
-			f"""<a href='{frappe.utils.get_url_to_list("Email Queue")}' target='blank'>Email Queue</a>"""
-		)
-	)
-
-
-def email_salary_slips(names) -> None:
-	for name in names:
-		salary_slip = frappe.get_doc("Salary Slip", name)
-		salary_slip.email_salary_slip()
->>>>>>> 3d50f15261f6078f4690d8fb774ca600dfdc57f6
+	total_loan_deduction = 0
+	if loandata:
+		for d in loandata:
+			total_loan_deduction += d.transaction_amount
+	
+	return total_loan_deduction
