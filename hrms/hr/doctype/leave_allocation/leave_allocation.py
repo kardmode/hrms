@@ -53,9 +53,8 @@ class LeaveAllocation(Document):
 	def validate_leave_allocation_days(self):
 		company = frappe.db.get_value("Employee", self.employee, "company")
 		leave_period = get_leave_period(self.from_date, self.to_date, company)
-		max_leaves_allowed = flt(
-			frappe.db.get_value("Leave Type", self.leave_type, "max_leaves_allowed")
-		)
+		max_leaves_allowed = frappe.db.get_value("Leave Type", self.leave_type, "max_leaves_allowed")
+
 		if max_leaves_allowed > 0:
 			leave_allocated = 0
 			if leave_period:
@@ -251,8 +250,8 @@ class LeaveAllocation(Document):
 
 	def limit_carry_forward_based_on_max_allowed_leaves(self):
 		max_leaves_allowed = frappe.db.get_value("Leave Type", self.leave_type, "max_leaves_allowed")
-		if max_leaves_allowed and self.total_leaves_allocated > flt(max_leaves_allowed):
-			self.total_leaves_allocated = flt(max_leaves_allowed)
+		if max_leaves_allowed and self.total_leaves_allocated > max_leaves_allowed:
+			self.total_leaves_allocated = max_leaves_allowed
 			self.unused_leaves = max_leaves_allowed - flt(self.new_leaves_allocated)
 
 	def set_carry_forwarded_leaves_in_previous_allocation(self, on_cancel=False):
@@ -310,18 +309,27 @@ class LeaveAllocation(Document):
 
 def get_previous_allocation(from_date, leave_type, employee):
 	"""Returns document properties of previous allocation"""
-	return frappe.db.get_value(
-		"Leave Allocation",
-		filters={
-			"to_date": ("<", from_date),
-			"leave_type": leave_type,
-			"employee": employee,
-			"docstatus": 1,
-		},
-		order_by="to_date DESC",
-		fieldname=["name", "from_date", "to_date", "employee", "leave_type"],
-		as_dict=1,
-	)
+	Allocation = frappe.qb.DocType("Leave Allocation")
+	allocations = (
+		frappe.qb.from_(Allocation)
+		.select(
+			Allocation.name,
+			Allocation.from_date,
+			Allocation.to_date,
+			Allocation.employee,
+			Allocation.leave_type,
+		)
+		.where(
+			(Allocation.employee == employee)
+			& (Allocation.leave_type == leave_type)
+			& (Allocation.to_date < from_date)
+			& (Allocation.docstatus == 1)
+		)
+		.orderby(Allocation.to_date, order=frappe.qb.desc)
+		.limit(1)
+	).run(as_dict=True)
+
+	return allocations[0] if allocations else None
 
 
 def get_leave_allocation_for_period(
