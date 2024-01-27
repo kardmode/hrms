@@ -63,6 +63,7 @@ frappe.ui.form.on('Payroll Entry', {
 			frm.events.add_salary_slip_buttons(frm,slip_status);
 
 		}
+
 		if (frm.doc.docstatus === 0 && !frm.is_new()) {
 			frm.page.clear_primary_action();
 			frm.add_custom_button(__("Get Employees"),
