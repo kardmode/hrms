@@ -8,6 +8,7 @@ from frappe.utils import cstr, cint, flt, getdate,date_diff
 from frappe import msgprint, _
 from calendar import monthrange
 from hrms.payroll.doctype.payroll_entry.payroll_entry import get_month_details
+from math import ceil
 
 def execute(filters=None):
 	if not filters: filters = {}
@@ -36,8 +37,11 @@ def execute(filters=None):
 	total_salary = 0
 	total_count = 0
 	
-	import math
-
+	
+	regulations = frappe.get_doc('MRP Regulations')
+	rount_up_salary = False
+	if cint(regulations.round_up_salary_in_wps):
+		rount_up_salary = True
 	
 	for count, ss in enumerate(salary_slips,1):
 		row = []
@@ -67,7 +71,6 @@ def execute(filters=None):
 			row +=	[month_details.month_end_date]
 			row +=	[ss.leave_without_pay]
 
-
 			basic_pay = 0
 			variable_pay = 0
 
@@ -77,14 +80,16 @@ def execute(filters=None):
 				elif "benefit" in e.lower():
 					basic_pay += flt(ss_earning_map.get(ss.name, {}).get(e))
 				
-			basic_pay = math.ceil(basic_pay)			
-			variable_pay = flt(ss.rounded_total) - flt(basic_pay)
+			basic_pay = ceil(basic_pay)
+			total_pay = ss.net_pay						
+			if rount_up_salary:
+				total_pay = ceil(total_pay)
+				
+			variable_pay = flt(total_pay) - flt(basic_pay)
 			if variable_pay < 0:
 				basic_pay = basic_pay + variable_pay
 				variable_pay = 0
-				
-				
-			
+							
 			row += [basic_pay]
 			row += [variable_pay]
 			row += [basic_pay + variable_pay]
@@ -117,7 +122,6 @@ def execute(filters=None):
 			row +=	[month_details.month_end_date]
 			row +=	[month_details.month_days]
 			
-
 			basic_pay = 0
 			variable_pay = 0
 
@@ -126,10 +130,13 @@ def execute(filters=None):
 					basic_pay += flt(ss_earning_map.get(ss.name, {}).get(e))
 				elif "benefit" in e.lower():
 					pass
-		
 				
-			basic_pay = math.ceil(basic_pay)			
-			variable_pay = flt(ss.rounded_total) - flt(basic_pay)
+			basic_pay = ceil(basic_pay)
+			total_pay = ss.net_pay						
+			if rount_up_salary:
+				total_pay = ceil(total_pay)
+				
+			variable_pay = flt(total_pay) - flt(basic_pay)
 			if variable_pay < 0:
 				basic_pay = basic_pay + variable_pay
 				variable_pay = 0
@@ -244,7 +251,7 @@ def get_columns(filters,salary_slips):
 	
 
 def get_salary_slips(conditions,filters):
-	salary_slips = frappe.db.sql("""select name,employee, employee_name, leave_calculation, gratuity_calculation,leave_without_pay,rounded_total from `tabSalary Slip` where docstatus < 2 %s
+	salary_slips = frappe.db.sql("""select name,employee, employee_name, leave_calculation, gratuity_calculation,leave_without_pay, net_pay from `tabSalary Slip` where docstatus < 2 %s
 		order by employee_name""" % conditions, filters, as_dict=1)
 	return salary_slips
 	

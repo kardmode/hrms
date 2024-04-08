@@ -678,7 +678,15 @@ class SalarySlip(TransactionBase):
 			flt(self.total_deduction) * flt(self.exchange_rate), self.precision("base_total_deduction")
 		)
 		self.net_pay = flt(self.gross_pay) - (flt(self.total_deduction) + flt(self.total_loan_repayment))
+		
+		regulations = frappe.get_doc('MRP Regulations')
+		if cint(regulations.round_up_salary):
+			self.net_pay = ceil(self.net_pay)
+		
 		self.rounded_total = rounded(self.net_pay)
+		if cint(regulations.round_up_rounded_in_slip):
+			self.rounded_total = ceil(self.net_pay)
+			
 		self.base_net_pay = flt(
 			flt(self.net_pay) * flt(self.exchange_rate), self.precision("base_net_pay")
 		)

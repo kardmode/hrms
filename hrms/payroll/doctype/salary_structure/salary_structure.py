@@ -14,6 +14,7 @@ import erpnext
 
 class SalaryStructure(Document):
 	def validate(self):
+		self.mrp_validate_basic()
 		self.set_missing_values()
 		self.validate_amount()
 		self.strip_condition_and_formula_fields()
@@ -22,6 +23,21 @@ class SalaryStructure(Document):
 		self.validate_payment_days_based_dependent_component()
 		self.validate_timesheet_component()
 		self.validate_formula_setup()
+		
+	def mrp_validate_basic(self):
+		pass
+		# if self.is_new():
+			# for table in ["earnings"]:
+				# for row in self.get(table):
+					# if row.salary_component and row.salary_component == "Basic Salary":
+						# frappe.msgprint(
+							# _("{0} Row #{1}: Do not make a new structure just to change an employee's salary. Make a new assignment with different base value.").format(
+								# table.capitalize(),
+								# row.idx,
+							# ),
+							# title=_("Warning"),
+							# indicator="orange",
+						# )
 
 	def validate_formula_setup(self):
 		for table in ["earnings", "deductions"]:
