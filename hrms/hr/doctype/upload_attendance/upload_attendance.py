@@ -49,13 +49,7 @@ def get_template():
 def add_header(w):
 	w.writerow(["Employee", "Attendance Date", "Arrival Time", "Departure Time"])
 
-
-	return w
-
-# def add_header(w):
-	# status = ", ".join(
-		# (frappe.get_meta("Attendance").get_field("status").options or "").strip().split("\n")
-	# )
+	# status = ", ".join((frappe.get_meta("Attendance").get_field("status").options or "").strip().split("\n"))
 	# w.writerow(["Notes:"])
 	# w.writerow(["Please do not change the template headings"])
 	# w.writerow(["Status should be one of these values: " + status])
@@ -63,8 +57,7 @@ def add_header(w):
 	# w.writerow(
 		# ["ID", "Employee", "Employee Name", "Date", "Status", "Leave Type", "Company", "Naming Series"]
 	# )
-	# return w
-
+	return w
 
 def add_data(w, args):
 	data = get_data(args)

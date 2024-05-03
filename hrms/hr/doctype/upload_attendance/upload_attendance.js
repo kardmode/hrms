@@ -1,8 +1,6 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // License: GNU General Public License v3. See license.txt
 
-
-
 frappe.provide("hrms.hr");
 
 hrms.hr.AttendanceControlPanel = class AttendanceControlPanel extends frappe.ui.form.Controller {
@@ -23,7 +21,7 @@ hrms.hr.AttendanceControlPanel = class AttendanceControlPanel extends frappe.ui.
 	}
 
 	get_template() {
-		if(!this.frm.doc.att_fr_date || !this.frm.doc.att_to_date) {
+		if (!this.frm.doc.att_fr_date || !this.frm.doc.att_to_date) {
 			frappe.msgprint(__("Attendance From Date and Attendance To Date is mandatory"));
 			return;
 		}
@@ -109,7 +107,7 @@ hrms.hr.AttendanceControlPanel = class AttendanceControlPanel extends frappe.ui.
 		var $wrapper = $(cur_frm.fields_dict.upload_html.wrapper).empty();
 		new frappe.ui.FileUploader({
 			wrapper: $wrapper,
-			method: 'hrms.hr.doctype.upload_attendance.upload_attendance.upload'
+			method: "hrms.hr.doctype.upload_attendance.upload_attendance.upload",
 		});
 
 	}
@@ -117,9 +115,8 @@ hrms.hr.AttendanceControlPanel = class AttendanceControlPanel extends frappe.ui.
 	setup_import_progress() {
 		var $log_wrapper = $(this.frm.fields_dict.import_log.wrapper).empty();
 
-		frappe.realtime.on('import_attendance', (data) => {
-			if (data.progress) {
-				
+		frappe.realtime.on("import_attendance", (data) => {
+			if (data.progress) {				
 				// cur_frm.dashboard.show_progress('Import Attendance', data.progress / data.total * 100,
 					// __('Importing {0} of {1}', [data.progress, data.total]));
 					
@@ -147,6 +144,7 @@ hrms.hr.AttendanceControlPanel = class AttendanceControlPanel extends frappe.ui.
 			}
 		});
 	}
-}
+};
 
-cur_frm.cscript = new hrms.hr.AttendanceControlPanel({frm: cur_frm});
+// nosemgrep: frappe-semgrep-rules.rules.frappe-cur-frm-usage
+cur_frm.cscript = new hrms.hr.AttendanceControlPanel({ frm: cur_frm });
