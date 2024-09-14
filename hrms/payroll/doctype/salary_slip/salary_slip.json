@@ -201,7 +201,6 @@
    "in_standard_filter": 1,
    "label": "Company",
    "options": "Company",
-   "remember_last_selected_value": 1,
    "reqd": 1
   },
   {
@@ -774,7 +773,7 @@
  "icon": "fa fa-file-text",
  "idx": 9,
  "links": [],
- "modified": "2023-09-25 19:33:53.460393",
+ "modified": "2024-06-11 10:00:16.606996",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Slip",
