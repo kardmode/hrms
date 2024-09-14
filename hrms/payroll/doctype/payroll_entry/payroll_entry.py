@@ -1135,7 +1135,7 @@ def calculate_lwp(employee,start_date, holidays, working_days):
 @frappe.whitelist()
 def get_start_end_dates(payroll_frequency, start_date=None, company=None):
 	"""Returns dict of start and end dates for given payroll frequency based on start_date"""
-
+	end_date = None
 	if payroll_frequency == "Monthly" or payroll_frequency == "Bimonthly" or payroll_frequency == "":
 		fiscal_year = get_fiscal_year(start_date, company=company)[0]
 		month = "%02d" % getdate(start_date).month
@@ -1166,6 +1166,13 @@ def get_start_end_dates(payroll_frequency, start_date=None, company=None):
 
 	if payroll_frequency == "Daily":
 		end_date = start_date
+		
+	if payroll_frequency == "Annual":
+		fiscal_year = get_fiscal_year(start_date, company=company)[0]
+		month = "%02d" % getdate(start_date).month
+		m = get_month_details(fiscal_year, month)
+		start_date = m["month_start_date"]
+		end_date = add_months(start_date, 12)
 
 	return frappe._dict({"start_date": start_date, "end_date": end_date})
 
