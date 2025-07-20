@@ -9,6 +9,7 @@ from frappe import msgprint, _
 from calendar import monthrange
 from hrms.payroll.doctype.payroll_entry.payroll_entry import get_month_details
 from math import ceil
+import time
 
 def execute(filters=None):
 	if not filters: filters = {}
@@ -48,8 +49,28 @@ def execute(filters=None):
 		
 		if no_leave and (ss.leave_calculation or ss.gratuity_calculation):
 			continue
-		
-		emp_details = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
+		# emp_details = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
+
+		emp_details = frappe.db.sql(
+			"""
+			SELECT 
+				e.mol_id, 
+				e.payroll_agent_id, 
+				e.payroll_agent_code,
+				COALESCE(p.agent_code, '') AS agent_code
+			FROM 
+				`tabEmployee` AS e
+			LEFT JOIN 
+				`tabMRP Payroll Agent` AS p
+			ON 
+				e.payroll_agent_code = p.agent
+			WHERE 
+				e.employee = %(employee)s
+			LIMIT 1
+			""", 
+			{"employee": ss.employee}, 
+			as_dict=1
+		)
 		
 		if filters.get("free_zone") == 1:
 			if emp_details:
@@ -66,7 +87,8 @@ def execute(filters=None):
 				row += [payroll_agent_id]
 					
 			row += [ss.employee_name]
-			row += [count]
+			row += [ss.employee]
+			# row += [count]
 			row +=	[month_details.month_start_date]
 			row +=	[month_details.month_end_date]
 			row +=	[ss.leave_without_pay]
@@ -103,19 +125,22 @@ def execute(filters=None):
 		else:
 		
 			if emp_details:
-			
 				payroll_agent_id = emp_details[0].payroll_agent_id
 				
 				if no_id and not payroll_agent_id:
 					continue
 			
 				row += ["EDR"]
-				row += [str(emp_details[0].mol_id).zfill(14)]
-				
+				if emp_details[0].mol_id:
+					row += [str(emp_details[0].mol_id).zfill(14)]
+				else:
+					row += [ss.employee_name]
+					
 				if str(payroll_agent_id).isdigit():
 					payroll_agent_id = str(payroll_agent_id).zfill(23)
 				
-				row += [emp_details[0].payroll_agent_code]
+				# row += [emp_details[0].payroll_agent_code]
+				row += [emp_details[0].agent_code]
 				row += [payroll_agent_id]
 					
 			row +=	[month_details.month_start_date]
@@ -152,21 +177,38 @@ def execute(filters=None):
 			if not(basic_pay == 0  and variable_pay == 0):
 				data.append(row)
 	
-	row = []
-	row += ["SCR"]
+
 	
-	company_details = []
-	if company:
-		company_details = frappe.db.sql("""select establishment_id,default_payroll_agent from `tabCompany Licenses` where company = %(company)s LIMIT 1""", {"company": company}, as_dict=1)	
+	# company_details = frappe.db.sql("""select establishment_id,default_payroll_agent from `tabCompany Licenses` where company = %(company)s LIMIT 1""", {"company": company}, as_dict=1)	
+
+	company_details = frappe.db.sql(
+			"""
+			SELECT 
+				e.establishment_id, 
+				e.default_payroll_agent, 
+				COALESCE(p.agent_code, '') AS agent_code
+			FROM 
+				`tabCompany Licenses` AS e
+			LEFT JOIN 
+				`tabMRP Payroll Agent` AS p
+			ON 
+				e.default_payroll_agent = p.agent
+			WHERE 
+				e.company = %(company)s
+			LIMIT 1
+			""", 
+			{"company": company}, 
+			as_dict=1
+		)
 
 	establishment_id = ""
 	default_payroll_agent = ""
 	if company_details:
 		establishment_id = company_details[0].establishment_id
-		default_payroll_agent = company_details[0].default_payroll_agent
+		default_payroll_agent = company_details[0].agent_code
 		
-	import time
-
+	row = []
+	row += ["SCR"]
 	if filters.get("free_zone") == 1:
 		row += [default_payroll_agent]
 		row += ["360"]
@@ -183,15 +225,16 @@ def execute(filters=None):
 		row += ["accounts@maarifagroup.com"]
 		data.append(row)
 		
-		creation_date = time.strftime("%Y%m%d")
-		creation_time = "{:<06}".format(creation_time)
+		creation_date = time.strftime("%y%m%d")
+		creation_time = time.strftime("%H%M%S")
 		row = [default_payroll_agent + "PR" + creation_date + creation_time + ".SIF"]
 		row += ["","","","","","","","","",""]
 		data.append(row)
 	else:
-		row += [str(establishment_id).zfill(13)]
-		row += [default_payroll_agent]
-		
+		filled_establishment_id = str(establishment_id).zfill(13)
+		row += [filled_establishment_id]
+		# row += [""]		
+		row += [default_payroll_agent]		
 		creation_date = time.strftime("%Y-%m-%d")
 		creation_time = time.strftime("%H%M")
 		row += [creation_date]
@@ -200,13 +243,16 @@ def execute(filters=None):
 		row += [len(salary_slips)]
 		row += [total_salary]
 		row += ["AED"]
-		row += [company]
-		row += ["accounts@maarifagroup.com"]
+		row += [""]
+		row += [""]
+		# row += [company]
+		# row += ["accounts@maarifagroup.com"]
 		data.append(row)
 		
 		creation_date = time.strftime("%y%m%d")
-		creation_time = "{:<06}".format(creation_time)
-		row = [establishment_id + creation_date + creation_time + ".SIF"]
+		creation_time = time.strftime("%H%M%S")
+		row = [filled_establishment_id + creation_date + creation_time + ".SIF"]
+		# row += [""]
 		row += ["","","","","","","","","",""]
 		data.append(row)
 	
@@ -214,17 +260,22 @@ def execute(filters=None):
 	
 def get_columns(filters,salary_slips):
 	
-	# 7 columns
+		# 7 columns
 	if filters.get("free_zone") == 1:
 		columns = [
-			_("Type") + "::75", "Customer No::140","Customer Name::150","Emp Ref No::80","Start Date::80",
-		"End Date::80","Days on Leave::50"
+			"Type::75", "Customer No::140","Customer Name::140"
+			,"Emp Ref No:Link/Employee:100"
+			,"Start Date::100"
+			,"End Date::100","Days on Leave::100"
 		]
 	else:
-	# 7 columns
+		# 7 columns
 		columns = [
-			_("Type") + "::75", "MOL ID::140","Agent Code::80","Agent ID::200","Start Date::80",
-			"End Date::80","Number of Days::50"
+			"Type::75", "MOL ID::140"
+			# ,"Agent:Link/MRP Payroll Agent:140"
+			,"Routing::140"
+			,"Agent ID::200","Start Date::100"
+			,"End Date::100","Number of Days::100"
 		]
 		
 	
@@ -241,7 +292,7 @@ def get_columns(filters,salary_slips):
 		columns = columns +	["Fixed Salary::100", "Variable Salary::100","Total Amount::100","::100"]
 	else:
 		# 11 columns
-		columns = columns +	["Fixed Salary::100", "Variable Salary::100","Days on Leave::50","::100"]
+		columns = columns +	["Fixed Salary::100", "Variable Salary::100","Days on Leave::100","::100"]
 
 	
 	return columns, salary_components[_("Earning")], salary_components[_("Deduction")]

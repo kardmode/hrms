@@ -2618,28 +2618,24 @@ def date_range(start=None, end=None):
 
 @frappe.whitelist()			
 def calculate_leave_advance(salaryperday, employee, start_date, total_working_days, encash_leave = False):
-	leaveadvance = 0
 	leave_calculation = ''
-	
+	leave_type_text = ''
+	leaveadvance = 0
+
+	if not encash_leave:
+		return leaveadvance,leave_calculation,encash_leave
+		
 	joining_date, relieving_date = frappe.db.get_value("Employee", employee,["date_of_joining", "relieving_date"])
 	if not joining_date:
 		frappe.throw(_("Please set the Joining Date for employee {0}").format(frappe.bold(employee)))
 
-	if not encash_leave:
-		return leaveadvance,leave_calculation,encash_leave
-
 	dt = add_days(start_date, total_working_days+2)
-	maxleavecheckdt = add_days(start_date, total_working_days+30)
-	if relieving_date:
-		if relieving_date <= getdate(dt):
-			return leaveadvance,leave_calculation,encash_leave
-		# elif relieving_date <= getdate(maxleavecheckdt):
-		# else:
-			# frappe.throw(_("Employee relieved on {0} must be set as 'Left'")
-				# .format(relieving_date))
+	if relieving_date and relieving_date <= getdate(dt):
+		return leaveadvance,leave_calculation,encash_leave
 	
 	leave = frappe.db.sql("""
-		select t1.name, t1.from_date,t1.to_date,t1.leave_type,t2.is_paid_in_advance,t2.is_present_during_period
+		select t1.name, t1.from_date,t1.to_date,t1.leave_type,
+		t2.is_paid_in_advance,t2.is_present_during_period
 		from `tabLeave Application` t1, `tabLeave Type` t2
 		where 
 		t2.name = t1.leave_type
@@ -2648,86 +2644,94 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 		and t1.status in ('Approved','Back From Leave')
 		and t1.employee = %s
 		and t1.from_date <= %s
-		ORDER BY to_date DESC LIMIT 2""", (employee, dt), as_dict=True)
-	# frappe.errprint(leave)
+		ORDER BY to_date DESC""", (employee, dt), as_dict=True)
 	
 	from datetime import timedelta
 	from math import ceil
-
+	
 	if leave:
 		if leave[0].from_date < getdate(start_date) - timedelta(days=30):
-			leave_calculation = "No leave applications found for this period. Please approve a leave application for this employee." + "<br>"
-
-			# frappe.msgprint(_("No leave applications found for this period. Please approve a leave application for this employee"))
+			leave_calculation = _("No leave applications found for this period. Please approve a leave application for this employee.") + "<br>"
 			encash_leave = 0
 			return leaveadvance,leave_calculation,encash_leave
 			
+		from mrp.mrp.doctype.mrp_gratuity.mrp_gratuity import get_approved_leaves_for_period
+		leave_types = frappe.db.sql("""
+				select t2.name
+				from `tabLeave Type` t2
+				where
+				t2.is_paid_in_advance = 1""", as_dict=True)
+		
+		final_date = leave[0].from_date - timedelta(days=1)
+		test_leavedaystaken = 0
+		for leave_type in leave_types:
+			test_leavedaystaken += get_approved_leaves_for_period(employee, leave_type.name, joining_date, final_date)
+		test_total_working_days = date_diff(final_date, joining_date)+1
+		test_leave_days_accum = ceil(flt(test_total_working_days)/365 * 30)
+		test_leave_days_due = flt(test_leave_days_accum - test_leavedaystaken)
+		test_calc = "Test Total Working Days " + str(test_total_working_days) + " | Test Leave Days Taken " + str(test_leavedaystaken) + " | Test Leave Days Accum " + str(test_leave_days_accum) + " | Test Leave Days Due " + str(test_leave_days_due) 
+			
 		if leave[0].is_present_during_period == 0:
-			end_date = leave[0].from_date
-			# Relieving date should be decremented since leave applications include the first day
-			end_date = end_date - timedelta(days=1)
+			leave_type_text = "Away for Leave"
+
+			# Leaving date should be decremented since leave applications include the first day
+			end_date = leave[0].from_date - timedelta(days=1)
 
 			if end_date < getdate(start_date):
+				leave_calculation = _("No leave applications found for this period. Please approve a leave application for this employee.") + "<br>"
 				encash_leave = 0
-				# frappe.msgprint(_("No leave applications found for this period. Please approve a leave application for this employee"))
 				return leaveadvance,leave_calculation,encash_leave
 				
 			if date_diff(end_date, joining_date) < 365:
-				if encash_leave:
-					leave_calculation = "Less than 1 year leave salary." + "<br>"
-				else:
-					# frappe.msgprint(_("This employee has worked at the company for less than a year."))
-					return leaveadvance,leave_calculation,encash_leave
+				leave_calculation = _("Employment Less than 1 year.") + "<br>"
 			
 			if len(leave)>1:
 				# Check for case where employee joining date is greater than previous leave departure date
 				if joining_date < getdate(leave[1].from_date):
 					# Joining date should be incremented since leave applications include the last day
 					start_date = leave[1].to_date + timedelta(days=1)
-					# frappe.msgprint(_("Calculating Leave From Date {0} To Date {1}.").format(joining_date,end_date))
 				else:
 					start_date = joining_date
-					# frappe.msgprint(_("Previous application is before employee joining date. Using company joining date."))
+					leave_calculation = _("Previous application is before employee joining date. Using joining date.") + "<br>"
 			else:
 				start_date = joining_date
-				# frappe.msgprint(_("No previous application found for this employee. Using company joining date."))
-
-
-		else:					
-			end_date = leave[0].to_date
-			start_date = leave[0].from_date
-			# frappe.msgprint(_("Special Case: Leave Encashment application dated {0}.").format(end_date))
-
+				leave_calculation = _("No previous application found for this employee. Using joining date.") + "<br>"
+		else:	
+			leave_type_text = "Present for Leave"
+			
+			# Leaving date should be decremented since leave applications include the first day
+			end_date = leave[0].from_date - timedelta(days=1)
+			
+			if len(leave)>1:
+				# Check for case where employee joining date is greater than previous leave departure date
+				if joining_date < getdate(leave[1].from_date):
+					# Joining date should be incremented since leave applications include the last day
+					start_date = leave[1].to_date + timedelta(days=1)
+				else:
+					start_date = joining_date
+					leave_calculation = _("Previous application is before employee joining date. Using joining date.") + "<br>"
+			else:
+				start_date = joining_date
+				leave_calculation = _("No previous application found for this employee. Using joining date.") + "<br>"
 	else:
 		encash_leave = 0
-		# frappe.msgprint(_("No leave applications found for this period. Please approve a valid leave application for this employee"))
+		leave_calculation = _("No leave applications found for this period. Please approve a leave application for this employee.") + "<br>"
 		return leaveadvance,leave_calculation,encash_leave
 	
-	payment_days = date_diff(end_date, start_date)+1
-	leavedaysdue = flt(payment_days)/365 * 30	
-	leavedaysdue = ceil(leavedaysdue)
+	work_days = date_diff(end_date, start_date)+1
+	leavedaysdue = ceil(flt(work_days)/365 * 30)
 	if leavedaysdue < 30 and leavedaysdue + 2 >= 30:
 		leavedaysdue = 30
-	
 	leaveadvance = flt(leavedaysdue)*flt(salaryperday)
 	leaveadvance = rounded(leaveadvance, 3)
-	
-	from frappe.utils import formatdate
-	
-	leave_type_text = ""
-	if leave[0].is_present_during_period == False:
-		leave_type_text = "Away for Leave"
-	else:
-		leave_type_text = "Present for Leave"
-	
+		
 	la_link = frappe.utils.get_link_to_form("Leave Application", leave[0].name)
-
-	
-	header_text = str(leave[0].leave_type) + " - Paid In Advance - " + str(leave_type_text) + " - " + str(la_link)
-	joiningtext = "From Date: " + formatdate(start_date) + " - To Date: " + formatdate(end_date) + " - Total Working Days: " + str(payment_days) 
+	header_text = str(leave[0].leave_type) + " - " + str(leave_type_text) + " - " + str(la_link)
+	joiningtext = "Working From Date: " + formatdate(start_date) + " | Working To Date: " + formatdate(end_date) + " | Working Days: " + str(work_days) 
 	workingdaystext =  "Leave Days Due (Rounded): " + str(leavedaysdue)
 	leavetext = "30 Days Leave Accumulated Every Year"
-	leave_calculation += header_text + "<br>" + joiningtext + " - " + workingdaystext + "<br>" + leavetext + "<br>"
+	leave_calculation += header_text + "<br>" + joiningtext + " | " + workingdaystext + "<br>"
+	# leave_calculation += test_calc + "<br>"
 	
 	return leaveadvance,leave_calculation, encash_leave
 
