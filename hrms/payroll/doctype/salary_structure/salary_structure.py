@@ -201,6 +201,8 @@ class SalaryStructure(Document):
 		base=None,
 		variable=None,
 		income_tax_slab=None,
+		fixed_benefits=None,
+		variable_benefits=None,
 	):
 		employees = self.get_employees(
 			company=self.company, grade=grade, department=department, designation=designation, name=employee
@@ -218,6 +220,8 @@ class SalaryStructure(Document):
 					base=base,
 					variable=variable,
 					income_tax_slab=income_tax_slab,
+					fixed_benefits=fixed_benefits,
+					variable_benefits=variable_benefits,
 				)
 			else:
 				assign_salary_structure_for_employees(
@@ -228,6 +232,8 @@ class SalaryStructure(Document):
 					base=base,
 					variable=variable,
 					income_tax_slab=income_tax_slab,
+					fixed_benefits=fixed_benefits,
+					variable_benefits=variable_benefits,
 				)
 		else:
 			frappe.msgprint(_("No Employee Found"))
@@ -241,6 +247,8 @@ def assign_salary_structure_for_employees(
 	base=None,
 	variable=None,
 	income_tax_slab=None,
+	fixed_benefits=None,
+	variable_benefits=None,
 ):
 	salary_structures_assignments = []
 	existing_assignments_for = get_existing_assignments(employees, salary_structure, from_date)
@@ -251,7 +259,7 @@ def assign_salary_structure_for_employees(
 		count += 1
 
 		salary_structures_assignment = create_salary_structures_assignment(
-			employee, salary_structure, payroll_payable_account, from_date, base, variable, income_tax_slab
+			employee, salary_structure, payroll_payable_account, from_date, base, variable, income_tax_slab, fixed_benefits, variable_benefits
 		)
 		salary_structures_assignments.append(salary_structures_assignment)
 		frappe.publish_progress(
@@ -271,6 +279,8 @@ def create_salary_structures_assignment(
 	base,
 	variable,
 	income_tax_slab=None,
+	fixed_benefits=None,
+	variable_benefits=None,
 ):
 	if not payroll_payable_account:
 		payroll_payable_account = frappe.db.get_value(
@@ -301,6 +311,14 @@ def create_salary_structures_assignment(
 	assignment.from_date = from_date
 	assignment.base = base
 	assignment.variable = variable
+	
+	# Set custom fields to your known values
+	if hasattr(assignment, "custom_fixed_benefits"):
+		assignment.custom_fixed_benefits = fixed_benefits
+
+	if hasattr(assignment, "custom_variable_benefits"):
+		assignment.custom_variable_benefits = variable_benefits
+	
 	assignment.income_tax_slab = income_tax_slab
 	assignment.save(ignore_permissions=True)
 	assignment.submit()
@@ -425,3 +443,166 @@ def get_salary_component(doctype, txt, searchfield, start, page_len, filters):
 				accounts.append((component.name, component.account, component.company))
 
 	return accounts
+	
+@frappe.whitelist()
+def mrp_update_inactive():
+	"""
+	Deactivate Salary Structures with no active assignments.
+	"""
+	to_deactivate = []
+
+	# Get all active Salary Structures
+	structures = frappe.get_all(
+		"Salary Structure",
+		filters={"is_active": "Yes", "docstatus": 1},
+		fields=["name"]
+	)
+
+	for struct in structures:
+		assignments = frappe.get_all(
+			"Salary Structure Assignment",
+			filters={"salary_structure": struct.name, "docstatus": 1},
+			fields=["employee"]
+		)
+
+		if not assignments:
+			to_deactivate.append({"name": struct.name, "reason": "No assignments"})
+			continue
+
+		# Check employee status
+		active_assignments = 0
+		for a in assignments:
+			employee_status = frappe.get_value("Employee", a.employee, "status")
+			if employee_status != "Left":
+				active_assignments += 1
+
+		if active_assignments == 0:
+			to_deactivate.append({"name": struct.name, "reason": "All assigned employees left"})
+
+	# Update all deactivated structures in one pass
+	for s in to_deactivate:
+		frappe.db.set_value("Salary Structure", s["name"], "is_active", "No")
+
+	frappe.db.commit()
+
+	# Build debug message
+	if not to_deactivate:
+		return "No Salary Structures to deactivate."
+
+	debug_lines = [f"{s['name']}: {s['reason']}" for s in to_deactivate]
+	debug_msg = "\n".join(debug_lines)
+
+	return f"Deactivated {len(to_deactivate)} Salary Structures:\n{debug_msg}"
+
+@frappe.whitelist()
+def mrp_update_base():
+	components = {
+		"Basic Salary":{
+			"amount_based_on_formula":1,
+			"is_tax_applicable": 1,
+			"formula":"base"
+		},
+		# "Overtime Weekdays": {
+			# "is_tax_applicable": 1,
+			# "formula": "(base * overtime_weekdays_rate * overtime_hours_weekdays) / (standard_days * salary_hours_calculation)"
+		# },
+		# "Overtime Weekends": {
+			# "is_tax_applicable": 1,
+			# "formula": "(base * overtime_fridays_rate * overtime_hours_fridays) / (standard_days * salary_hours_calculation)"
+		# },
+		# "Overtime Holidays": {
+			# "is_tax_applicable": 1,
+			# "formula": "(base * overtime_holidays_rate * overtime_hours_holidays) / (standard_days * salary_hours_calculation)"
+		# },
+	}
+	
+	salary_details = frappe.get_all(
+		"Salary Detail",
+		filters={
+			"parenttype": "Salary Structure",
+			"salary_component": ["in", list(components.keys())],
+			# "amount_based_on_formula":0,
+			# "formula":"",
+		},
+		fields=["name", "salary_component", "parent","amount_based_on_formula","formula"]
+	)
+	
+	updated = []
+	for detail in salary_details:
+		comp = detail.salary_component
+		props = components.get(comp, {})
+
+		update_fields = props.copy()
+
+		updated.append({
+			"name": detail.name,
+			"parent": detail.parent,
+			"salary_component": comp,
+			"original": detail,
+			"update_fields": update_fields
+		})
+
+		frappe.db.set_value("Salary Detail", detail.name, update_fields)
+
+	# Debug summary
+	if not updated:
+		return "Debug: No rows found."
+
+	summary = [
+		f"{d['parent']} → {d['salary_component']} | original {d['original']} | updates: {d['update_fields']}" 
+		for d in updated
+	]
+	return f"Debug: {len(updated)} Salary Details updated:\n\n" + "\n\n".join(summary)
+	
+@frappe.whitelist()
+def mrp_update_overtime():
+	components = {
+		"Overtime Weekdays": {
+			"is_tax_applicable": 1,
+			"formula": "(base * overtime_weekdays_rate * overtime_hours_weekdays) / (standard_days * salary_hours_calculation)"
+		},
+		"Overtime Weekends": {
+			"is_tax_applicable": 1,
+			"formula": "(base * overtime_fridays_rate * overtime_hours_fridays) / (standard_days * salary_hours_calculation)"
+		},
+		"Overtime Holidays": {
+			"is_tax_applicable": 1,
+			"formula": "(base * overtime_holidays_rate * overtime_hours_holidays) / (standard_days * salary_hours_calculation)"
+		},
+	}
+	
+	salary_details = frappe.get_all(
+		"Salary Detail",
+		filters={
+			"parenttype": "Salary Structure",
+			"salary_component": ["in", list(components.keys())]
+		},
+		fields=["name", "salary_component", "parent"]
+	)
+	
+	updated = []
+	for detail in salary_details:
+		comp = detail.salary_component
+		props = components.get(comp, {})
+
+		update_fields = props.copy()
+
+		updated.append({
+			"name": detail.name,
+			"parent": detail.parent,
+			"salary_component": comp,
+			"original": detail,
+			"update_fields": update_fields
+		})
+
+		frappe.db.set_value("Salary Detail", detail.name, update_fields)
+
+	# Debug summary
+	if not updated:
+		return "Debug: No rows found."
+
+	summary = [
+		f"{d['parent']} → {d['salary_component']} | original {d['original']} | updates: {d['update_fields']}" 
+		for d in updated
+	]
+	return f"Debug: {len(updated)} Salary Details updated:\n\n" + "\n\n".join(summary)

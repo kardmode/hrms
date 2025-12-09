@@ -1027,8 +1027,6 @@ class SalarySlip(TransactionBase):
 
 		self.add_structure_components(component_type)
 		
-
-		
 		self.add_additional_salary_components(component_type)
 		if component_type == "earnings":
 			self.add_employee_benefits()
@@ -1036,12 +1034,11 @@ class SalarySlip(TransactionBase):
 			self.add_tax_components()
 			
 		# MRP
-		self.add_custom_components()
+		self.mrp_add_custom_components()
 
 
 	def add_structure_components(self, component_type):
 		self.data, self.default_data = self.get_data_for_eval()
-
 		timesheet_component = frappe.db.get_value(
 			"Salary Structure", self.salary_structure, "salary_component"
 		)
@@ -1123,6 +1120,7 @@ class SalarySlip(TransactionBase):
 		data.update(salary_structure_assignment)
 		data.update(self.as_dict())
 		data.update(employee)
+		data.update(self.mrp_inject_custom_variables())
 
 		# set values for components
 		salary_components = frappe.get_all("Salary Component", fields=["salary_component_abbr"])
@@ -2153,44 +2151,64 @@ class SalarySlip(TransactionBase):
 					},
 				)
 				
-	def add_custom_components(self):
+	def mrp_inject_custom_variables(self):
+		"""
+		Add only the specific custom variables needed for your new components
+		- Regulations rates
+		- Overtime hours
+		"""
+		# Add regulations rates
+		try:
+			regulations = frappe.get_doc("MRP Regulations")
+		except frappe.DoesNotExistError:
+			regulations = None
+			
+		data = frappe._dict()
+
+		# Add regulations fields to self.data with default 0
+		data["overtime_weekdays_rate"] = flt(getattr(regulations, "overtime_weekdays_rate", 0)) if regulations else 0
+		data["overtime_fridays_rate"] = flt(getattr(regulations, "overtime_fridays_rate", 0)) if regulations else 0
+		data["overtime_holidays_rate"] = flt(getattr(regulations, "overtime_holidays_rate", 0)) if regulations else 0
+		data["salary_hours_calculation"] = flt(getattr(regulations, "salary_hours_calculation", 0)) if regulations else 0
+		data["standard_days"] = flt(getattr(regulations, "standard_days", 0)) if regulations else 0
+
+		# Add overtime hours from Salary Slip fields
+		data["overtime_hours_weekdays"] = flt(getattr(self, "overtime_hours_weekdays", 0))
+		data["overtime_hours_fridays"] = flt(getattr(self, "overtime_hours_fridays", 0))
+		data["overtime_hours_holidays"] = flt(getattr(self, "overtime_hours_holidays", 0))
+		return data
+					
+	def mrp_add_custom_components(self):
 		regulations = frappe.get_doc('MRP Regulations')
 		salaryperday,hourlyrate = self.calculate_salary_per_day(regulations.salary_hours_calculation,regulations.standard_days)
 				
-		for component_type in ('earnings', 'deductions'):
-			if component_type == 'earnings':
-				for d in self.get(component_type):
-					if(d.salary_component == "Overtime Weekdays"):
-						d.rate = flt(regulations.overtime_weekdays_rate)
-						d.default_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
-						d.amount = d.default_amount
-						d.is_tax_applicable = 0
-					elif(d.salary_component == "Overtime Weekends"):
-						d.rate = flt(regulations.overtime_fridays_rate)
-						d.default_amount = flt(self.overtime_hours_fridays) * flt(d.rate) * flt(hourlyrate)
-						d.is_tax_applicable = 0
-						d.amount = d.default_amount
-					elif(d.salary_component == "Overtime Holidays"):
-						d.rate = flt(regulations.overtime_holidays_rate)
-						d.default_amount = flt(self.overtime_hours_holidays) * flt(d.rate) * flt(hourlyrate)
-						d.is_tax_applicable = 0
-						d.amount = d.default_amount
+		for d in self.get('earnings'):
+			# if d.amount_based_on_formula:
+				# continue
+			
+			if(d.salary_component == "Overtime Weekdays"):
+				d.default_amount = flt(self.overtime_hours_weekdays) * flt(regulations.overtime_weekdays_rate) * flt(hourlyrate)
+				d.amount = d.default_amount
+			elif(d.salary_component == "Overtime Weekends"):
+				d.default_amount = flt(self.overtime_hours_fridays) * flt(regulations.overtime_fridays_rate) * flt(hourlyrate)
+				d.amount = d.default_amount
+			elif(d.salary_component == "Overtime Holidays"):
+				d.default_amount = flt(self.overtime_hours_holidays) * flt(regulations.overtime_holidays_rate) * flt(hourlyrate)
+				d.amount = d.default_amount
 				
-			elif component_type == 'deductions':
-				self.set_salary_component(component_type,'Loan Repayment',custom_get_loan_deductions(self.start_date,self.end_date,self.employee))	
-		
+		loan_deduction = custom_get_loan_deductions(self.start_date,self.end_date,self.employee)
+		self.set_salary_component('deductions','Loan Repayment',loan_deduction)	
+
 		leave_encashment_amount,self.leave_calculation,self.encash_leave = calculate_leave_advance(salaryperday, self.employee, self.start_date, self.total_working_days, cint(self.encash_leave))
-		# frappe.errprint(_("leave {0}").format(leave_encashment_amount))
 		self.set_salary_component('earnings','Leave Encashment',leave_encashment_amount)		
 
-		
-	def calculate_salary_per_day(self,salary_hours_calculation,salary_standard_days):
+	def calculate_salary_per_day(self,salary_hours_calculation,standard_days):
 		salaryperday = 0.0
 		hourlyrate = 0.0
 			
 		for d in self.get("earnings"):
 			if(d.salary_component == "Basic Salary"):
-				salaryperday = 	flt(d.default_amount)/salary_standard_days
+				salaryperday = 	flt(d.default_amount)/standard_days
 				hourlyrate = flt(salaryperday)/ flt(salary_hours_calculation)
 				d.rate = hourlyrate
 				break

@@ -90,6 +90,18 @@ frappe.ui.form.on("Salary Structure", {
 		frm.fields_dict['earnings'].grid.set_column_disp("default_amount", false);
 		frm.fields_dict['deductions'].grid.set_column_disp("default_amount", false);
 
+			frm.add_custom_button(__("Update Overtime"), function() {
+				frm.trigger("mrp_update_overtime");
+			}, __("Tools"));
+			
+			frm.add_custom_button(__("Update Base"), function() {
+				frm.trigger("mrp_update_base");
+			}, __("Tools"));
+			
+			frm.add_custom_button(__("Update Inactive"), function() {
+				frm.trigger("mrp_update_inactive");
+			}, __("Tools"));
+
 		if (frm.doc.docstatus === 1) {
 			frm.add_custom_button(__("Assign to Employees"), function() {
 				frm.trigger("assign_to_employees")
@@ -135,7 +147,9 @@ frappe.ui.form.on("Salary Structure", {
 				{fieldname:'income_tax_slab', fieldtype:'Link', label: __('Income Tax Slab'), options: 'Income Tax Slab'},
 				{fieldname:'base_col_br', fieldtype:'Column Break'},
 				{fieldname:'base', fieldtype:'Currency', label: __('Base')},
-				{fieldname:'variable', fieldtype:'Currency', label: __('Variable')}
+				{fieldname:'variable', fieldtype:'Currency', label: __('Variable')},
+				{fieldname:'fixed_benefits', fieldtype:'Currency', label: __('Fixed Benefits')},
+				{fieldname:'variable_benefits', fieldtype:'Currency', label: __('Variable Benefits')},
 			],
 			primary_action: function() {
 				var data = d.get_values();
@@ -236,7 +250,45 @@ frappe.ui.form.on("Salary Structure", {
 		frm.toggle_display(['salary_component', 'hour_rate'], frm.doc.salary_slip_based_on_timesheet);
 		frm.toggle_reqd(['salary_component', 'hour_rate'], frm.doc.salary_slip_based_on_timesheet);
 		frm.toggle_reqd(['payroll_frequency'], !frm.doc.salary_slip_based_on_timesheet);
-	}
+	},
+	
+	
+	mrp_update_base(frm) {
+		frappe.call({
+			method: "hrms.payroll.doctype.salary_structure.salary_structure.mrp_update_base",
+			callback: (r) => {
+				if (r && r.message) {
+					frappe.msgprint(r.message);
+				} else {
+					frappe.msgprint(__("Operation complete."));
+				}
+			}
+		});
+	},
+	mrp_update_overtime(frm) {
+		frappe.call({
+			method: "hrms.payroll.doctype.salary_structure.salary_structure.mrp_update_overtime",
+			callback: (r) => {
+				if (r && r.message) {
+					frappe.msgprint(r.message);
+				} else {
+					frappe.msgprint(__("Operation complete."));
+				}
+			}
+		});
+	},
+	mrp_update_inactive(frm) {
+		frappe.call({
+			method: "hrms.payroll.doctype.salary_structure.salary_structure.mrp_update_inactive",
+			callback: (r) => {
+				if (r && r.message) {
+					frappe.msgprint(r.message);
+				} else {
+					frappe.msgprint(__("Operation complete."));
+				}
+			}
+		});
+	},
 });
 
 var validate_date = function(frm, cdt, cdn) {
