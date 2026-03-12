@@ -707,11 +707,17 @@ class PayrollEntry(Document):
 		conversion_rate = 1
 		exchange_rate = self.exchange_rate
 		account_currency = frappe.db.get_value("Account", account, "account_currency")
+
 		if account_currency not in currencies:
 			currencies.append(account_currency)
+
+		if company_currency not in currencies:
+			currencies.append(company_currency)
+
 		if account_currency == company_currency:
 			conversion_rate = self.exchange_rate
 			exchange_rate = 1
+
 		amount = flt(amount) * flt(conversion_rate)
 
 		return exchange_rate, amount

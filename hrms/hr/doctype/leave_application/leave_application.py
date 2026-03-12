@@ -333,6 +333,8 @@ class LeaveApplication(Document):
 			frappe.throw(_("You are not authorized to approve leaves on Block Dates"), LeaveDayBlockedError)
 
 	def validate_balance_leaves(self):
+		precision = cint(frappe.db.get_single_value("System Settings", "float_precision")) or 2
+
 		if self.from_date and self.to_date:
 			self.total_leave_days = get_number_of_leave_days(
 				self.employee,
@@ -359,9 +361,9 @@ class LeaveApplication(Document):
 					consider_all_leaves_in_the_allocation_period=True,
 					for_consumption=True,
 				)
-				self.leave_balance = leave_balance.get("leave_balance")
-				leave_balance_for_consumption = leave_balance.get("leave_balance_for_consumption")
-
+				leave_balance_for_consumption = flt(
+					leave_balance.get("leave_balance_for_consumption"), precision
+				)
 				if self.status != "Rejected" and (
 					leave_balance_for_consumption < self.total_leave_days or not leave_balance_for_consumption
 				):
@@ -528,14 +530,30 @@ class LeaveApplication(Document):
 		)
 
 	def validate_attendance(self):
-		attendance = frappe.db.sql(
-			"""select name from `tabAttendance` where employee = %s and (attendance_date between %s and %s)
-					and status = 'Present' and docstatus = 1""",
-			(self.employee, self.from_date, self.to_date),
+		attendance_dates = frappe.get_all(
+			"Attendance",
+			filters={
+				"employee": self.employee,
+				"attendance_date": ("between", [self.from_date, self.to_date]),
+				"status": ("in", ["Present", "Work From Home"]),
+				"docstatus": 1,
+			},
+			fields=["name", "attendance_date"],
+			order_by="attendance_date",
 		)
-		if attendance:
+		if attendance_dates:
 			frappe.throw(
-				_("Attendance for employee {0} is already marked for this day").format(self.employee),
+				_("Attendance for employee {0} is already marked for the following dates: {1}").format(
+					self.employee,
+					(
+						"<br><ul><li>"
+						+ "</li><li>".join(
+							get_link_to_form("Attendance", a.name, label=formatdate(a.attendance_date))
+							for a in attendance_dates
+						)
+						+ "</li></ul>"
+					),
+				),
 				AttendanceAlreadyMarkedError,
 			)
 
@@ -828,20 +846,24 @@ def get_number_of_leave_days(
 
 
 @frappe.whitelist()
-def get_leave_details(employee, date):
+def get_leave_details(employee, date, for_salary_slip=False):
 	allocation_records = get_leave_allocation_records(employee, date)
 	leave_allocation = {}
-	precision = cint(frappe.db.get_single_value("System Settings", "float_precision", cache=True))
+	precision = cint(frappe.db.get_single_value("System Settings", "float_precision")) or 2
 
 	for d in allocation_records:
 		allocation = allocation_records.get(d, frappe._dict())
+		to_date = date if for_salary_slip else allocation.to_date
 		remaining_leaves = get_leave_balance_on(
-			employee, d, date, to_date=allocation.to_date, consider_all_leaves_in_the_allocation_period=True
+			employee,
+			d,
+			date,
+			to_date=to_date,
+			consider_all_leaves_in_the_allocation_period=False if for_salary_slip else True,
 		)
 
-		end_date = allocation.to_date
-		leaves_taken = get_leaves_for_period(employee, d, allocation.from_date, end_date) * -1
-		leaves_pending = get_leaves_pending_approval_for_period(employee, d, allocation.from_date, end_date)
+		leaves_taken = get_leaves_for_period(employee, d, allocation.from_date, to_date) * -1
+		leaves_pending = get_leaves_pending_approval_for_period(employee, d, allocation.from_date, to_date)
 		expired_leaves = allocation.total_leaves_allocated - (remaining_leaves + leaves_taken)
 
 		leave_allocation[d] = {
