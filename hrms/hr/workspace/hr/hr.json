@@ -5,7 +5,7 @@
    "label": "Designation Wise Employee Count"
   }
  ],
- "content": "[{\"id\":\"S_2ky24xbn\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Designation Wise Employee Count\",\"col\":12}},{\"id\":\"dCJP5-UL0x\",\"type\":\"header\",\"data\":{\"text\":\"<span style=\\\"font-size: 18px;\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"z4KvW64yx9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"id\":\"FpdnAv9UNy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Leave Application\",\"col\":3}},{\"id\":\"l02erjIfo3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"fYEzNVnCex\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"15_oHfGe6u\",\"type\":\"card\",\"data\":{\"card_name\":\"Setup\",\"col\":4}},{\"id\":\"F1WG4ZdEvr\",\"type\":\"card\",\"data\":{\"card_name\":\"Employee\",\"col\":4}},{\"id\":\"4XgkgkCHRp\",\"type\":\"card\",\"data\":{\"card_name\":\"Leaves\",\"col\":4}},{\"id\":\"SPOq--pbSS\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"c43Lufkr_c\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"eJdtNk8Z69\",\"type\":\"card\",\"data\":{\"card_name\":\"Expense Claim\",\"col\":4}}]",
+ "content": "[{\"id\":\"z4KvW64yx9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"id\":\"FpdnAv9UNy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Leave Application\",\"col\":3}},{\"id\":\"Oh7ystkPjg\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Upload Attendance\",\"col\":3}},{\"id\":\"IG9ZJPD5Kr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Attendance\",\"col\":3}},{\"id\":\"R7R-SK1AXh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"AhkVV4p3oG\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Employee Loans\",\"col\":3}},{\"id\":\"4_kVccOoiR\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"395B_t9QeK\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company Licenses\",\"col\":3}},{\"id\":\"27XKvUsEMq\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company\",\"col\":3}},{\"id\":\"t_CyvXeWDq\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Regulations\",\"col\":3}},{\"id\":\"HsQm7UJxHz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Holiday List\",\"col\":3}},{\"id\":\"AMRsqw-O3c\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Working Hours\",\"col\":3}},{\"id\":\"b0eTtIKjix\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"bTTcaQu7_z\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Leave Application Open\",\"col\":4}},{\"id\":\"kOlZR2tqrH\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Leave Application Approved\",\"col\":4}},{\"id\":\"s5PoerobfO\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"S_2ky24xbn\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Designation Wise Employee Count\",\"col\":12}}]",
  "creation": "2020-03-02 15:48:58.322521",
  "custom_blocks": [],
  "docstatus": 0,
@@ -18,8 +18,44 @@
  "kard_menu": [
   {
    "doc_view": "",
+   "label": "Branch",
+   "link_to": "Branch",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Company Licenses",
+   "link_to": "Company Licenses",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
    "label": "MRP Payroll Agent",
    "link_to": "MRP Payroll Agent",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "MRP Regulations",
+   "link_to": "MRP Regulations",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Department",
+   "link_to": "Department",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Designation",
+   "link_to": "Designation",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "MRP Employee Loans",
+   "link_to": "MRP Employee Loans",
    "type": "DocType"
   }
  ],
@@ -30,7 +66,8 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Settings",
-   "link_count": 3,
+   "link_count": 1,
+   "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
   },
@@ -44,345 +81,9 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Daily Work Summary Group",
-   "link_count": 0,
-   "link_to": "Daily Work Summary Group",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Team Updates",
-   "link_count": 0,
-   "link_to": "team-updates",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Other Reports",
-   "link_count": 4,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "Employee",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Employee Information",
-   "link_count": 0,
-   "link_to": "Employee Information",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Employee",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Employee Birthday",
-   "link_count": 0,
-   "link_to": "Employee Birthday",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Employee",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Employees Working on a Holiday",
-   "link_count": 0,
-   "link_to": "Employees working on a holiday",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Daily Work Summary",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Daily Work Summary Replies",
-   "link_count": 0,
-   "link_to": "Daily Work Summary Replies",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Attendance",
-   "link_count": 3,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Attendance",
-   "link_count": 0,
-   "link_to": "Attendance",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Attendance Request",
-   "link_count": 0,
-   "link_to": "Attendance Request",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Employee Checkin",
-   "link_count": 0,
-   "link_to": "Employee Checkin",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Expense Claim",
-   "link_count": 3,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Expense Claim",
-   "link_count": 0,
-   "link_to": "Expense Claim",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Employee Advance",
-   "link_count": 0,
-   "link_to": "Employee Advance",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Travel Request",
-   "link_count": 0,
-   "link_to": "Travel Request",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Leaves",
-   "link_count": 3,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Leave Application",
-   "link_count": 0,
-   "link_to": "Leave Application",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Compensatory Leave Request",
-   "link_count": 0,
-   "link_to": "Compensatory Leave Request",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Leave Type",
-   "link_count": 0,
-   "link_to": "Leave Type",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Employee",
-   "link_count": 4,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Employee",
-   "link_count": 0,
-   "link_to": "Employee",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Employee Group",
-   "link_count": 0,
-   "link_to": "Employee Group",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Employee Grade",
-   "link_count": 0,
-   "link_to": "Employee Grade",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Employee Loans",
-   "link_count": 0,
-   "link_to": "MRP Employee Loans",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Setup",
-   "link_count": 9,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Company",
-   "link_count": 0,
-   "link_to": "Company",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Branch",
-   "link_count": 0,
-   "link_to": "Branch",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Department",
-   "link_count": 0,
-   "link_to": "Department",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Designation",
-   "link_count": 0,
-   "link_to": "Designation",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Company Licenses",
-   "link_count": 0,
-   "link_to": "Company Licenses",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Upload Attendance",
-   "link_count": 0,
-   "link_to": "Upload Attendance",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Regulations",
-   "link_count": 0,
-   "link_to": "MRP Regulations",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Working Hours",
-   "link_count": 0,
-   "link_to": "MRP Working Hours",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Holiday List",
-   "link_count": 0,
-   "link_to": "Holiday List",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2024-10-10 16:55:59.080694",
+ "modified": "2025-12-25 21:26:44.088083",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR",
@@ -390,7 +91,18 @@
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
- "quick_lists": [],
+ "quick_lists": [
+  {
+   "document_type": "Leave Application",
+   "label": "Leave Application Open",
+   "quick_list_filter": "[[\"Leave Application\",\"status\",\"=\",\"Open\",false]]"
+  },
+  {
+   "document_type": "Leave Application",
+   "label": "Leave Application Approved",
+   "quick_list_filter": "[[\"Leave Application\",\"status\",\"=\",\"Approved\",false]]"
+  }
+ ],
  "restrict_to_domain": "",
  "roles": [],
  "sequence_id": 9.0,
@@ -398,8 +110,51 @@
   {
    "color": "Grey",
    "doc_view": "List",
+   "label": "Upload Attendance",
+   "link_to": "Upload Attendance",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "format": "-",
+   "label": "Attendance",
+   "link_to": "Attendance",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "format": "-",
+   "label": "Company",
+   "link_to": "Company",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "format": "{} Open",
    "label": "Leave Application",
    "link_to": "Leave Application",
+   "stats_filter": "[[\"Leave Application\",\"status\",\"=\",\"Open\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Dashboard",
+   "link_to": "Human Resource",
+   "type": "Dashboard"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "format": "-",
+   "label": "Mrp Employee Loans",
+   "link_to": "MRP Employee Loans",
+   "stats_filter": "[]",
    "type": "DocType"
   },
   {
@@ -408,6 +163,37 @@
    "label": "Employee",
    "link_to": "Employee",
    "stats_filter": "{\"status\":\"Active\"}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Company Licenses",
+   "link_to": "Company Licenses",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Regulations",
+   "link_to": "MRP Regulations",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Holiday List",
+   "link_to": "Holiday List",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Working Hours",
+   "link_to": "MRP Working Hours",
+   "stats_filter": "[]",
    "type": "DocType"
   }
  ],

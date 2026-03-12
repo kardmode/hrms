@@ -5,7 +5,7 @@
    "label": "Outgoing Salary"
   }
  ],
- "content": "[{\"id\":\"UiYg0cppt6\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Outgoing Salary\",\"col\":12}},{\"id\":\"fRqVCEOYf4\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"JQg5p3p1O6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"8zO59n3ZRp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Register\",\"col\":3}},{\"id\":\"JJmos1lFvQ\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"ap7BrXAe1A\",\"type\":\"card\",\"data\":{\"card_name\":\"Quick Links\",\"col\":4}},{\"id\":\"ax6xVFmg4e\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"TV3OliwFHu\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}}]",
+ "content": "[{\"id\":\"CkoaUg-xaR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Slip\",\"col\":3}},{\"id\":\"cKnk0pSiIx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Entry\",\"col\":3}},{\"id\":\"hAw5Lbk1yr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Structure Assignment\",\"col\":3}},{\"id\":\"vZVyq_ahJJ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Structure\",\"col\":3}},{\"id\":\"8zO59n3ZRp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Register\",\"col\":3}},{\"id\":\"JQg5p3p1O6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"obvE2hGntV\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"ap7BrXAe1A\",\"type\":\"card\",\"data\":{\"card_name\":\"Quick Links\",\"col\":4}},{\"id\":\"ax6xVFmg4e\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"TV3OliwFHu\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"JJmos1lFvQ\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"UiYg0cppt6\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Outgoing Salary\",\"col\":12}}]",
  "creation": "2020-05-27 19:54:23.405607",
  "custom_blocks": [],
  "docstatus": 0,
@@ -64,49 +64,10 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Quick Links",
-   "link_count": 7,
+   "link_count": 3,
+   "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Payroll Entry",
-   "link_count": 0,
-   "link_to": "Payroll Entry",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Salary Slip",
-   "link_count": 0,
-   "link_to": "Salary Slip",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Salary Structure",
-   "link_count": 0,
-   "link_to": "Salary Structure",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Salary Structure Assignment",
-   "link_count": 0,
-   "link_to": "Salary Structure Assignment",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
   },
   {
    "hidden": 0,
@@ -143,18 +104,9 @@
    "is_query_report": 0,
    "label": "Settings",
    "link_count": 3,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Payroll Settings",
-   "link_count": 0,
-   "link_to": "Payroll Settings",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Link"
+   "type": "Card Break"
   },
   {
    "hidden": 0,
@@ -175,9 +127,19 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Holiday List",
+   "link_count": 0,
+   "link_to": "Holiday List",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2023-09-27 04:20:20.943438",
+ "modified": "2025-12-26 00:40:58.330642",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Payroll",
@@ -198,9 +160,42 @@
   {
    "color": "Grey",
    "doc_view": "List",
+   "label": "Salary Slip",
+   "link_to": "Salary Slip",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Payroll Entry",
+   "link_to": "Payroll Entry",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "format": "-",
+   "label": "Structure Assignment",
+   "link_to": "Salary Structure Assignment",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
    "label": "Salary Register",
    "link_to": "Salary Register",
    "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Salary Structure",
+   "link_to": "Salary Structure",
+   "stats_filter": "[]",
+   "type": "DocType"
   }
  ],
  "title": "Payroll"
