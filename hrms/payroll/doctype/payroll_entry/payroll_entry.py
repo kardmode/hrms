@@ -126,7 +126,7 @@ class PayrollEntry(Document):
 				# cond += " and t2.payroll_payable_account = %(payroll_payable_account)s"
 			
 			emp_list = get_emp_list(sal_struct, cond, self.end_date, self.payroll_payable_account)
-			emp_list = remove_payrolled_employees(emp_list, self.start_date, self.end_date)
+			#emp_list = remove_payrolled_employees(emp_list, self.start_date, self.end_date)
 			emp_list = remove_away_employees(emp_list, self.start_date, self.end_date,self.employees_on_leave)
 			return emp_list
 
@@ -1090,8 +1090,64 @@ def remove_away_employees(emp_list, start_date, end_date,employees_on_leave):
 			payment_days = flt(get_payment_days(e.employee,start_date, end_date, joining_date, relieving_date,holidays))-flt(lwp)
 			if payment_days > 0:
 				new_emp_list.append(e)
+			else:
+				print(f"[Payroll Entry] Excluded away employee: {e.employee} (LWP: {lwp}, Payment Days: {payment_days})")
 
 	return new_emp_list
+
+@frappe.whitelist()
+def debug_remove_away_employees(employee, start_date, end_date, employees_on_leave=0):
+	from hrms.hr.utils import get_holiday_dates_for_employee
+	working_days = date_diff(end_date, start_date) + 1
+	holidays = get_holiday_dates_for_employee(employee, start_date, end_date)
+	
+	# Inspect all leave applications overlapping period
+	leaves = frappe.db.sql("""
+		select t1.name, t1.leave_type, t1.from_date, t1.to_date, t1.total_leave_days,
+		       t1.status, t1.docstatus, ifnull(t1.salary_slip, '') as salary_slip,
+		       t2.is_lwp, t2.is_present_during_period, t2.is_paid_in_advance, t2.include_holiday
+		from `tabLeave Application` t1
+		join `tabLeave Type` t2 on t2.name = t1.leave_type
+		where t1.employee = %s
+		  and (t1.from_date <= %s and t1.to_date >= %s)
+	""", (employee, end_date, start_date), as_dict=True)
+
+	lwp = calculate_lwp(employee, start_date, holidays, working_days)
+	
+	joining_date, relieving_date = frappe.db.get_value("Employee", employee, 
+		["date_of_joining", "relieving_date"])
+	
+	raw_payment_days = flt(get_payment_days(employee, start_date, end_date, joining_date, relieving_date, holidays))
+	net_payment_days = raw_payment_days - flt(lwp)
+	
+	if cint(employees_on_leave):
+		included = (lwp > 0)
+		reason = "Included because employees_on_leave is checked and LWP > 0" if included else "Excluded because employees_on_leave is checked but LWP == 0"
+	else:
+		included = (net_payment_days > 0)
+		reason = f"Included because net payment days ({net_payment_days}) > 0" if included else f"Excluded because net payment days ({net_payment_days}) <= 0"
+
+	debug_info = {
+		"employee": employee,
+		"start_date": str(start_date),
+		"end_date": str(end_date),
+		"working_days": working_days,
+		"holidays_count": len(holidays),
+		"calculated_lwp": lwp,
+		"raw_payment_days": raw_payment_days,
+		"net_payment_days": net_payment_days,
+		"employees_on_leave_setting": cint(employees_on_leave),
+		"included_in_payroll": included,
+		"reason": reason,
+		"leave_applications": leaves
+	}
+	
+	print("\n--- [DEBUG] BASE HRMS PAYROLL ENTRY AWAY CHECK ---")
+	for k, v in debug_info.items():
+		print(f"{k}: {v}")
+	print("--------------------------------------------------\n")
+	
+	return debug_info
 
 def get_payment_days(employee, start_date, end_date, joining_date, relieving_date,holidays):
 	start_date = getdate(start_date)

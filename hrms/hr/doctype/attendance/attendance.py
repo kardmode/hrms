@@ -60,7 +60,7 @@ class Attendance(Document):
 
 		new_date = add_days(getdate(nowdate()), 45)
 
-		# mrp leaves can be marked for future dates
+		# mrp_edited leaves can be marked for future dates
 		if (
 			self.status != "On Leave"
 			and not self.leave_application
@@ -244,11 +244,26 @@ class Attendance(Document):
 			
 	def calculate_total_hours(self):
 	
-		if self.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+		# 1. Sync from standard in_time / out_time if arrival/departure are not set
+		if self.in_time and (not self.arrival_time or str(self.arrival_time).strip() in ["#--:--", "00:00", "0:00:00", "00:00:0", "00:00:00", ""]):
+			try:
+				self.arrival_time = get_time(self.in_time).strftime("%H:%M:%S")
+			except Exception:
+				pass
+
+		if self.out_time and (not self.departure_time or str(self.departure_time).strip() in ["#--:--", "00:00", "0:00:00", "00:00:0", "00:00:00", ""]):
+			try:
+				self.departure_time = get_time(self.out_time).strftime("%H:%M:%S")
+			except Exception:
+				pass
+
+		# 2. Sanitize empty, None, or placeholder values to "00:00:00"
+		if not self.arrival_time or str(self.arrival_time).strip() in ["#--:--", "00:00", "0:00:00", "00:00:0", "None", ""]:
 			self.arrival_time = "00:00:00"
-			
-		if self.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+
+		if not self.departure_time or str(self.departure_time).strip() in ["#--:--", "00:00", "0:00:00", "00:00:0", "None", ""]:
 			self.departure_time = "00:00:00"
+
 		
 		try:
 			self.departure_time = get_time(self.departure_time ).strftime("%H:%M:%S")
@@ -295,11 +310,13 @@ class Attendance(Document):
 		working_hours = frappe.db.sql("""select working_hours from `tabMRP Working Hours`
 				where %s >= from_date AND %s <= to_date and (department = %s or department = 'All Departments' or ISNULL(NULLIF(department, '')))""", (self.attendance_date,self.attendance_date,self.department))
 
+		# mrp_edited
 		if working_hours:
 			self.normal_time = flt(working_hours[0][0])
 		else:
 			self.normal_time = flt(frappe.db.get_single_value("MRP Regulations", "working_hours"))
 		
+		# mrp_edited
 		weekends = []
 		weekend_tb = frappe.get_list('MRP Day Selector', ['day'], 
 			filters = {'parent':'MRP Regulations', 'parenttype':'MRP Regulations', 'parentfield' : 'weekends'}, parent_doctype="MRP Regulations")

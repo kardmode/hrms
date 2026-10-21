@@ -438,7 +438,7 @@ class SalarySlip(TransactionBase):
 				holidays, working_days_list, relieving_date
 			)
 
-		# MRP 
+		# mrp_edited 
 		self.on_leave_days = actual_lwp
 		self.get_attendance_details()
 
@@ -768,6 +768,7 @@ class SalarySlip(TransactionBase):
 		)
 		self.net_pay = flt(self.gross_pay) - (flt(self.total_deduction) + flt(self.total_loan_repayment))
 		
+		# mrp_edited
 		regulations = frappe.get_doc('MRP Regulations')
 		if cint(regulations.round_up_salary):
 			self.net_pay = ceil(self.net_pay)
@@ -1058,7 +1059,7 @@ class SalarySlip(TransactionBase):
 		else:
 			self.add_tax_components()
 			
-		# MRP
+		# mrp_edited
 		self.mrp_add_custom_components()
 
 
@@ -1723,7 +1724,7 @@ class SalarySlip(TransactionBase):
 			)
 		):
 
-			# MRP custom by me
+			# mrp_edited
 			payment_days = self.payment_days
 			total_working_days = self.total_working_days
 			
@@ -2177,7 +2178,8 @@ class SalarySlip(TransactionBase):
 						"available_leaves": flt(leave_values.get("remaining_leaves")),
 					},
 				)
-				
+
+	# mrp_edited		
 	def mrp_inject_custom_variables(self):
 		"""
 		Add only the specific custom variables needed for your new components
@@ -2204,7 +2206,8 @@ class SalarySlip(TransactionBase):
 		data["overtime_hours_fridays"] = flt(getattr(self, "overtime_hours_fridays", 0))
 		data["overtime_hours_holidays"] = flt(getattr(self, "overtime_hours_holidays", 0))
 		return data
-					
+
+	# mrp_edited			
 	def mrp_add_custom_components(self):
 		regulations = frappe.get_doc('MRP Regulations')
 		salaryperday,hourlyrate = self.calculate_salary_per_day(regulations.salary_hours_calculation,regulations.standard_days)
@@ -2270,10 +2273,8 @@ class SalarySlip(TransactionBase):
 				newd.amount = newd.default_amount
 				
 			
-	
-
+	# mrp_edited
 	def get_attendance_details(self):
-		
 		self.overtime_hours_weekdays = 0
 		self.overtime_hours_fridays	= 0		
 		self.overtime_hours_holidays = 0
@@ -2675,6 +2676,7 @@ def date_range(start=None, end=None):
 		return days
 	return []
 
+# mrp_edited
 @frappe.whitelist()			
 def calculate_leave_advance(salaryperday, employee, start_date, total_working_days, encash_leave = False):
 	leave_calculation = ''
