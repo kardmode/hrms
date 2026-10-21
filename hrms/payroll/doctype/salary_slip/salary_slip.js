@@ -271,20 +271,8 @@ frappe.ui.form.on("Salary Slip", {
 				},
 			});
 		}
-	},	
-	enable_attendance: function(frm) {
-		frm.events.get_emp_and_working_day_details(frm);
 	},
-	
-	// Leave encashment
-	encash_leave: function(frm) {
-		frm.events.get_emp_and_working_day_details(frm);
-	},
-	
-	// Loan deduction
-	refresh_loan_deduction: function(frm) {
-		frm.events.get_emp_and_working_day_details(frm);
-	},
+
 	set_payment_days_description: function (frm) {
 		if (frm.doc.docstatus !== 0) return;
 

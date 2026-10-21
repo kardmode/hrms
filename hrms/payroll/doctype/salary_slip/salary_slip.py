@@ -175,7 +175,6 @@ class SalarySlip(TransactionBase):
 					),
 					alert=True,
 				)
-				
 
 	def set_net_total_in_words(self):
 		doc_currency = self.currency
@@ -398,7 +397,6 @@ class SalarySlip(TransactionBase):
 			self.add_earning_for_hourly_wages(self, self._salary_structure_doc.salary_component, wages_amount)
 
 		make_salary_slip(self._salary_structure_doc.name, self)
-		
 
 	def get_working_days_details(self, joining_date=None, relieving_date=None, lwp=None, for_preview=0):
 		payroll_based_on = frappe.db.get_value("Payroll Settings", None, "payroll_based_on")
@@ -438,17 +436,12 @@ class SalarySlip(TransactionBase):
 				holidays, working_days_list, relieving_date
 			)
 
-		# mrp_edited 
-		self.on_leave_days = actual_lwp
-		self.get_attendance_details()
-
 		if not lwp:
 			lwp = actual_lwp
 		elif lwp != actual_lwp:
-			#frappe.msgprint(
-				#_("Leave Without Pay does not match with approved {} records").format(payroll_based_on)
-			#)
-			pass
+			frappe.msgprint(
+				_("Leave Without Pay does not match with approved {} records").format(payroll_based_on)
+			)
 
 		self.leave_without_pay = lwp
 		self.total_working_days = working_days
@@ -767,16 +760,7 @@ class SalarySlip(TransactionBase):
 			flt(self.total_deduction) * flt(self.exchange_rate), self.precision("base_total_deduction")
 		)
 		self.net_pay = flt(self.gross_pay) - (flt(self.total_deduction) + flt(self.total_loan_repayment))
-		
-		# mrp_edited
-		regulations = frappe.get_doc('MRP Regulations')
-		if cint(regulations.round_up_salary):
-			self.net_pay = ceil(self.net_pay)
-		
 		self.rounded_total = rounded(self.net_pay)
-		if cint(regulations.round_up_rounded_in_slip):
-			self.rounded_total = ceil(self.net_pay)
-			
 		self.base_net_pay = flt(flt(self.net_pay) * flt(self.exchange_rate), self.precision("base_net_pay"))
 		self.base_rounded_total = flt(rounded(self.base_net_pay), self.precision("base_net_pay"))
 		if self.hour_rate:
@@ -1051,20 +1035,16 @@ class SalarySlip(TransactionBase):
 			self._salary_structure_doc = frappe.get_doc("Salary Structure", self.salary_structure)
 
 		self.add_structure_components(component_type)
-		
 		self.add_additional_salary_components(component_type)
 
 		if component_type == "earnings":
 			self.add_employee_benefits()
 		else:
 			self.add_tax_components()
-			
-		# mrp_edited
-		self.mrp_add_custom_components()
-
 
 	def add_structure_components(self, component_type):
 		self.data, self.default_data = self.get_data_for_eval()
+
 		timesheet_component = frappe.db.get_value(
 			"Salary Structure", self.salary_structure, "salary_component"
 		)
@@ -1146,7 +1126,6 @@ class SalarySlip(TransactionBase):
 		data.update(salary_structure_assignment)
 		data.update(self.as_dict())
 		data.update(employee)
-		data.update(self.mrp_inject_custom_variables())
 
 		# set values for components
 		salary_components = frappe.get_all("Salary Component", fields=["salary_component_abbr"])
@@ -1376,8 +1355,8 @@ class SalarySlip(TransactionBase):
 			)
 
 		if not component_row:
-			# if not (amount or default_amount) and remove_if_zero_valued:
-				# return
+			if not (amount or default_amount) and remove_if_zero_valued:
+				return
 
 			component_row = self.append(component_type)
 			for attr in (
@@ -1428,8 +1407,8 @@ class SalarySlip(TransactionBase):
 		)[0]
 
 		# remove 0 valued components that have been updated later
-		# if component_row.amount == 0 and remove_if_zero_valued:
-			# self.remove(component_row)
+		if component_row.amount == 0 and remove_if_zero_valued:
+			self.remove(component_row)
 
 	def set_precision_for_component_amounts(self):
 		for component_type in ("earnings", "deductions"):
@@ -1723,22 +1702,13 @@ class SalarySlip(TransactionBase):
 				or (relieving_date and getdate(self.end_date) > relieving_date)
 			)
 		):
-
-			# mrp_edited
-			payment_days = self.payment_days
-			total_working_days = self.total_working_days
-			
-			if payment_days == total_working_days:
-				payment_days = 30
-			total_working_days = 30
-
 			additional_amount = flt(
-				(flt(row.additional_amount) * flt(payment_days) / cint(total_working_days)),
+				(flt(row.additional_amount) * flt(self.payment_days) / cint(self.total_working_days)),
 				row.precision("additional_amount"),
 			)
 			amount = (
 				flt(
-					(flt(row.default_amount) * flt(payment_days) / cint(total_working_days)),
+					(flt(row.default_amount) * flt(self.payment_days) / cint(self.total_working_days)),
 					row.precision("amount"),
 				)
 				+ additional_amount
@@ -2011,19 +1981,12 @@ class SalarySlip(TransactionBase):
 
 	def pull_emp_details(self):
 		emp = frappe.db.get_value(
-			"Employee", self.employee, ["designation","department","company","employee_name", "bank_name", "bank_ac_no", "salary_mode"], as_dict=1
+			"Employee", self.employee, ["bank_name", "bank_ac_no", "salary_mode"], as_dict=1
 		)
 		if emp:
-			self.designation = emp.designation
-			self.department = emp.department
-			self.company = emp.company
-			self.employee_name = emp.employee_name
 			self.mode_of_payment = emp.salary_mode
 			self.bank_name = emp.bank_name
 			self.bank_account_no = emp.bank_ac_no
-			
-			self.letter_head = frappe.db.get_value("Company", self.company, "default_letter_head")
-
 
 	@frappe.whitelist()
 	def process_salary_based_on_working_days(self):
@@ -2179,210 +2142,6 @@ class SalarySlip(TransactionBase):
 					},
 				)
 
-	# mrp_edited		
-	def mrp_inject_custom_variables(self):
-		"""
-		Add only the specific custom variables needed for your new components
-		- Regulations rates
-		- Overtime hours
-		"""
-		# Add regulations rates
-		try:
-			regulations = frappe.get_doc("MRP Regulations")
-		except frappe.DoesNotExistError:
-			regulations = None
-			
-		data = frappe._dict()
-
-		# Add regulations fields to self.data with default 0
-		data["overtime_weekdays_rate"] = flt(getattr(regulations, "overtime_weekdays_rate", 0)) if regulations else 0
-		data["overtime_fridays_rate"] = flt(getattr(regulations, "overtime_fridays_rate", 0)) if regulations else 0
-		data["overtime_holidays_rate"] = flt(getattr(regulations, "overtime_holidays_rate", 0)) if regulations else 0
-		data["salary_hours_calculation"] = flt(getattr(regulations, "salary_hours_calculation", 0)) if regulations else 0
-		data["standard_days"] = flt(getattr(regulations, "standard_days", 0)) if regulations else 0
-
-		# Add overtime hours from Salary Slip fields
-		data["overtime_hours_weekdays"] = flt(getattr(self, "overtime_hours_weekdays", 0))
-		data["overtime_hours_fridays"] = flt(getattr(self, "overtime_hours_fridays", 0))
-		data["overtime_hours_holidays"] = flt(getattr(self, "overtime_hours_holidays", 0))
-		return data
-
-	# mrp_edited			
-	def mrp_add_custom_components(self):
-		regulations = frappe.get_doc('MRP Regulations')
-		salaryperday,hourlyrate = self.calculate_salary_per_day(regulations.salary_hours_calculation,regulations.standard_days)
-				
-		for d in self.get('earnings'):
-			# if d.amount_based_on_formula:
-				# continue
-			
-			if(d.salary_component == "Overtime Weekdays"):
-				d.default_amount = flt(self.overtime_hours_weekdays) * flt(regulations.overtime_weekdays_rate) * flt(hourlyrate)
-				d.amount = d.default_amount
-			elif(d.salary_component == "Overtime Weekends"):
-				d.default_amount = flt(self.overtime_hours_fridays) * flt(regulations.overtime_fridays_rate) * flt(hourlyrate)
-				d.amount = d.default_amount
-			elif(d.salary_component == "Overtime Holidays"):
-				d.default_amount = flt(self.overtime_hours_holidays) * flt(regulations.overtime_holidays_rate) * flt(hourlyrate)
-				d.amount = d.default_amount
-				
-		loan_deduction = custom_get_loan_deductions(self.start_date,self.end_date,self.employee)
-		self.set_salary_component('deductions','Loan Repayment',loan_deduction)	
-
-		leave_encashment_amount,self.leave_calculation,self.encash_leave = calculate_leave_advance(salaryperday, self.employee, self.start_date, self.total_working_days, cint(self.encash_leave))
-		self.set_salary_component('earnings','Leave Encashment',leave_encashment_amount)		
-
-	def calculate_salary_per_day(self,salary_hours_calculation,standard_days):
-		salaryperday = 0.0
-		hourlyrate = 0.0
-			
-		for d in self.get("earnings"):
-			if(d.salary_component == "Basic Salary"):
-				salaryperday = 	flt(d.default_amount)/standard_days
-				hourlyrate = flt(salaryperday)/ flt(salary_hours_calculation)
-				d.rate = hourlyrate
-				break
-
-		if salaryperday == 0.0:
-			frappe.throw(_("No salary per day calculation for employee {0}").format(self.employee))
-		
-		return salaryperday,hourlyrate
-		
-		
-	
-	def set_salary_component(self,type,salary_component,amount):
-		dtypefound = 0
-		for d in self.get(type):
-			if d.salary_component == salary_component:
-				if dtypefound:
-					self.get(type).remove(d)
-				else:
-					if amount > 0:
-						d.default_amount = amount
-						dtypefound = 1
-						d.amount = d.default_amount
-
-					else:
-						self.get(type).remove(d)
-		
-		if amount > 0:
-			if not dtypefound:
-				newd = self.append(type, {})
-				newd.salary_component = salary_component
-				newd.default_amount = amount
-				newd.amount = newd.default_amount
-				
-			
-	# mrp_edited
-	def get_attendance_details(self):
-		self.overtime_hours_weekdays = 0
-		self.overtime_hours_fridays	= 0		
-		self.overtime_hours_holidays = 0
-		self.absent_days = 0
-		self.unverified_days = 0
-		self.attendance_summary = ''
-		
-		if self.employee and self.start_date and self.end_date:
-			
-			import calendar
-			month = getdate(self.start_date).month
-			month_in_words =  calendar.month_abbr[cint(month)]
-			fiscal_year = getdate(self.start_date).year
-			
-			# header_html = '<div class=""><h2>ATTENDANCE SLIP - {0}. {1}</h2></div></div>'.format(month_in_words,fiscal_year)
-			table_header = '<table class="table table-bordered table-condensed"><thead><tr style><th style="width: 15%;line-height:1">{0}</th><th style="width: 12%;line-height:1">{1}</th><th style="width: 12%;line-height:1">{2}</th><th style="width: 15%;line-height:1">{3}</th><th style="width: 15%;line-height:1">{4}</th><th style="width: 15%;line-height:1">{5}</th><th style="width: 15%;line-height:1">{6}</th></tr></thead><tbody>'.format("Date","Arrival","Departure","Normal","OT Weekdays","OT Weekends","OT Holidays")
-			table_body = ''
-			
-			total_absent = 0
-			total_present_days = 0
-			total_nt = 0
-			total_ot = 0
-			total_otf = 0
-			total_oth = 0
-			
-			working_days = date_diff(self.end_date, self.start_date)+1
-
-			for d in range(working_days):
-				dt = add_days(cstr(getdate(self.start_date)), d)
-				
-				if getdate(dt) <= getdate(self.end_date):
-				
-					attendance_list = frappe.db.sql("""select arrival_time,departure_time,normal_time,overtime,overtime_fridays,overtime_holidays, attendance_date, status from tabAttendance where employee = %(employee)s and attendance_date  = %(atendance_date)s order by attendance_date"""
-					,{'employee': self.employee, 'atendance_date': dt}, as_dict=1)
-					
-					details = {}
-					if attendance_list:
-						details = attendance_list[0]
-					
-			
-					if details:
-						total_present_days += 1
-						if details.status == "Present":
-							if self.enable_attendance:
-								self.overtime_hours_weekdays += flt(details.overtime)
-								self.overtime_hours_fridays += flt(details.overtime_fridays)
-								self.overtime_hours_holidays += flt(details.overtime_holidays)
-								
-							arrival_time = details.arrival_time
-							departure_time = details.departure_time
-
-							arrival_time = str(arrival_time)[:-3]
-							departure_time = str(departure_time)[:-3]
-						elif details.status in ["Absent"]:
-							total_absent = total_absent+1
-							arrival_time = "-"
-							departure_time = "-"
-						elif details.status in ["On Leave"]:
-							total_absent = total_absent+1
-							arrival_time = "On Leave"
-							departure_time = "On Leave"
-					
-						
-
-						normal_time = flt(details.normal_time)
-						overtime = flt(details.overtime)
-						overtime_fridays = flt(details.overtime_fridays)
-						overtime_holidays = flt(details.overtime_holidays)
-					else:
-						arrival_time = "--:--"
-						departure_time = "--:--"
-						normal_time = 0
-						overtime = 0
-						overtime_fridays = 0
-						overtime_holidays = 0
-						
-						
-					total_ot = flt(total_ot) + flt(overtime)
-					total_otf = flt(total_otf) + flt(overtime_fridays)
-					total_oth = flt(total_oth) + flt(overtime_holidays)
-					total_nt = flt(total_ot) + flt(total_otf) +flt(total_oth)
-
-					
-					
-					textdate = str(getdate(dt).strftime("%a")) + ' ' + str(getdate(dt).day) + ', ' + str(getdate(dt).year)
-
-					table_row = '<tr style><td style="line-height:1">{0}</td><td style="line-height:1">{1}</td><td style="line-height:1">{2}</td><td style="line-height:1">{3}</td><td style="line-height:1">{4}</td><td style="line-height:1">{5}</td><td style="line-height:1">{6}</td></tr>'.format(str(textdate),str(arrival_time),str(departure_time),str(round(normal_time,2)),str(round(overtime,2)),str(round(overtime_fridays,2)),str(round(overtime_holidays,2)))
-					table_body = table_body + table_row
-					
-					
-			self.absent_days = flt(total_absent)
-			self.unverified_days = flt(self.total_working_days) - flt(total_present_days)
-			
-			regulations = frappe.get_doc('MRP Regulations')
-			
-			if cint(regulations.reduce_overtime_hours):
-				self.overtime_hours_weekdays = flt(self.overtime_hours_weekdays)/ flt(regulations.overtime_weekdays_rate)
-				self.overtime_hours_fridays = flt(self.overtime_hours_fridays) / flt(regulations.overtime_fridays_rate)
-				self.overtime_hours_holidays = flt(self.overtime_hours_holidays) / flt(regulations.overtime_holidays_rate)
-			
-			table_space = '<tr style><td style="line-height:1">{0}</td><td style="line-height:1">{1}</td><td style="line-height:1">{2}</td><td style="line-height:1">{3}</td><td style="line-height:1">{4}</td><td style="line-height:1">{5}</td><td style="line-height:1">{6}</td></tr>'.format(str(''),str(''),str(''),str(''),str(''),str(''),str(''))
-
-			table_total = '<tr style="font-weight:bold;"><td style="line-height:1">{0}</td><td style="line-height:1">{1}</td><td style="line-height:1">{2}</td><td style="line-height:1">{3}</td><td style="line-height:1">{4}</td><td style="line-height:1">{5}</td><td style="line-height:1">{6}</td></tr>'.format(str('Total'),str(round(total_nt,2)),str(''),str(''),str(round(total_ot,2)),str(round(total_otf,2)),str(round(total_oth,2)))
-			table_end = '</tbody></table>'
-
-			self.attendance_summary = table_header + table_body + table_space + table_total + table_end
-
-	
 
 def unlink_ref_doc_from_salary_slip(doc, method=None):
 	"""Unlinks accrual Journal Entry from Salary Slips on cancellation"""
@@ -2502,26 +2261,6 @@ def eval_tax_slab_condition(condition, eval_globals=None, eval_locals=None):
 def get_lwp_or_ppl_for_date(date, employee, holidays):
 	LeaveApplication = frappe.qb.DocType("Leave Application")
 	LeaveType = frappe.qb.DocType("Leave Type")
-	
-	# for d in range(working_days):
-			# dt = add_days(cstr(getdate(self.start_date)), d)
-			# leave = frappe.db.sql("""
-				# select t1.name, t2.is_ppl, t2.fraction_of_daily_salary_per_leave, t1.half_day
-				# from `tabLeave Application` t1, `tabLeave Type` t2
-				# where t2.name = t1.leave_type
-				# and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
-				# and t1.docstatus < 2
-				# and t1.status in ('Approved','Back From Leave')
-				# and t1.employee = %(employee)s
-				# and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
-				# WHEN t2.include_holiday THEN %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
-				# END
-				# """.format(holidays), {"employee": self.employee, "dt": dt})
-
-			# if leave:
-				# lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
-		
-		# return lwp
 
 	is_half_day = (
 		frappe.qb.terms.Case()
@@ -2546,9 +2285,9 @@ def get_lwp_or_ppl_for_date(date, employee, holidays):
 			(is_half_day),
 		)
 		.where(
-			(((LeaveType.is_lwp == 1) | (LeaveType.is_ppl == 1) | (LeaveType.is_present_during_period == 0)))
-			& (LeaveApplication.docstatus < 2)
-			& ((LeaveApplication.status == "Approved") | (LeaveApplication.status == "Back From Leave"))
+			((LeaveType.is_lwp == 1) | (LeaveType.is_ppl == 1))
+			& (LeaveApplication.docstatus == 1)
+			& (LeaveApplication.status == "Approved")
 			& (LeaveApplication.employee == employee)
 			& ((LeaveApplication.salary_slip.isnull()) | (LeaveApplication.salary_slip == ""))
 			& ((LeaveApplication.from_date <= date) & (date <= LeaveApplication.to_date))
@@ -2601,6 +2340,7 @@ def throw_error_message(row, error, title, description=None):
 	).format(**data)
 
 	frappe.throw(message, title=title)
+
 
 def _safe_eval(code: str, eval_globals: dict | None = None, eval_locals: dict | None = None):
 	"""Old version of safe_eval from framework.
@@ -2666,154 +2406,3 @@ def email_salary_slips(names) -> None:
 	for name in names:
 		salary_slip = frappe.get_doc("Salary Slip", name)
 		salary_slip.email_salary_slip()
-
-def date_range(start=None, end=None):
-	if start and end:
-		from datetime import timedelta
-
-		delta = end - start  # as timedelta
-		days = [str(start + timedelta(days=i)) for i in range(delta.days + 1)]
-		return days
-	return []
-
-# mrp_edited
-@frappe.whitelist()			
-def calculate_leave_advance(salaryperday, employee, start_date, total_working_days, encash_leave = False):
-	leave_calculation = ''
-	leave_type_text = ''
-	leaveadvance = 0
-
-	if not encash_leave:
-		return leaveadvance,leave_calculation,encash_leave
-		
-	joining_date, relieving_date = frappe.db.get_value("Employee", employee,["date_of_joining", "relieving_date"])
-	if not joining_date:
-		frappe.throw(_("Please set the Joining Date for employee {0}").format(frappe.bold(employee)))
-
-	dt = add_days(start_date, total_working_days+2)
-	if relieving_date and relieving_date <= getdate(dt):
-		return leaveadvance,leave_calculation,encash_leave
-	
-	leave = frappe.db.sql("""
-		select t1.name, t1.from_date,t1.to_date,t1.leave_type,
-		t2.is_paid_in_advance,t2.is_present_during_period
-		from `tabLeave Application` t1, `tabLeave Type` t2
-		where 
-		t2.name = t1.leave_type
-		and t2.is_paid_in_advance = 1
-		and t1.docstatus < 2
-		and t1.status in ('Approved','Back From Leave')
-		and t1.employee = %s
-		and t1.from_date <= %s
-		ORDER BY to_date DESC""", (employee, dt), as_dict=True)
-	
-	from datetime import timedelta
-	from math import ceil
-	
-	if leave:
-		if leave[0].from_date < getdate(start_date) - timedelta(days=30):
-			leave_calculation = _("No leave applications found for this period. Please approve a leave application for this employee.") + "<br>"
-			encash_leave = 0
-			return leaveadvance,leave_calculation,encash_leave
-			
-		from mrp.mrp.doctype.mrp_gratuity.mrp_gratuity import get_approved_leaves_for_period
-		leave_types = frappe.db.sql("""
-				select t2.name
-				from `tabLeave Type` t2
-				where
-				t2.is_paid_in_advance = 1""", as_dict=True)
-		
-		final_date = leave[0].from_date - timedelta(days=1)
-		test_leavedaystaken = 0
-		for leave_type in leave_types:
-			test_leavedaystaken += get_approved_leaves_for_period(employee, leave_type.name, joining_date, final_date)
-		test_total_working_days = date_diff(final_date, joining_date)+1
-		test_leave_days_accum = ceil(flt(test_total_working_days)/365 * 30)
-		test_leave_days_due = flt(test_leave_days_accum - test_leavedaystaken)
-		test_calc = "Test Total Working Days " + str(test_total_working_days) + " | Test Leave Days Taken " + str(test_leavedaystaken) + " | Test Leave Days Accum " + str(test_leave_days_accum) + " | Test Leave Days Due " + str(test_leave_days_due) 
-			
-		if leave[0].is_present_during_period == 0:
-			leave_type_text = "Away for Leave"
-
-			# Leaving date should be decremented since leave applications include the first day
-			end_date = leave[0].from_date - timedelta(days=1)
-
-			if end_date < getdate(start_date):
-				leave_calculation = _("No leave applications found for this period. Please approve a leave application for this employee.") + "<br>"
-				encash_leave = 0
-				return leaveadvance,leave_calculation,encash_leave
-				
-			if date_diff(end_date, joining_date) < 365:
-				leave_calculation = _("Employment Less than 1 year.") + "<br>"
-			
-			if len(leave)>1:
-				# Check for case where employee joining date is greater than previous leave departure date
-				if joining_date < getdate(leave[1].from_date):
-					# Joining date should be incremented since leave applications include the last day
-					start_date = leave[1].to_date + timedelta(days=1)
-				else:
-					start_date = joining_date
-					leave_calculation = _("Previous application is before employee joining date. Using joining date.") + "<br>"
-			else:
-				start_date = joining_date
-				leave_calculation = _("No previous application found for this employee. Using joining date.") + "<br>"
-		else:	
-			leave_type_text = "Present for Leave"
-			
-			# Leaving date should be decremented since leave applications include the first day
-			end_date = leave[0].from_date - timedelta(days=1)
-			
-			if len(leave)>1:
-				# Check for case where employee joining date is greater than previous leave departure date
-				if joining_date < getdate(leave[1].from_date):
-					# Joining date should be incremented since leave applications include the last day
-					start_date = leave[1].to_date + timedelta(days=1)
-				else:
-					start_date = joining_date
-					leave_calculation = _("Previous application is before employee joining date. Using joining date.") + "<br>"
-			else:
-				start_date = joining_date
-				leave_calculation = _("No previous application found for this employee. Using joining date.") + "<br>"
-	else:
-		encash_leave = 0
-		leave_calculation = _("No leave applications found for this period. Please approve a leave application for this employee.") + "<br>"
-		return leaveadvance,leave_calculation,encash_leave
-	
-	work_days = date_diff(end_date, start_date)+1
-	leavedaysdue = ceil(flt(work_days)/365 * 30)
-	if leavedaysdue < 30 and leavedaysdue + 2 >= 30:
-		leavedaysdue = 30
-	leaveadvance = flt(leavedaysdue)*flt(salaryperday)
-	leaveadvance = rounded(leaveadvance, 3)
-		
-	la_link = frappe.utils.get_link_to_form("Leave Application", leave[0].name)
-	header_text = str(leave[0].leave_type) + " - " + str(leave_type_text) + " - " + str(la_link)
-	joiningtext = "Working From Date: " + formatdate(start_date) + " | Working To Date: " + formatdate(end_date) + " | Working Days: " + str(work_days) 
-	workingdaystext =  "Leave Days Due (Rounded): " + str(leavedaysdue)
-	leavetext = "30 Days Leave Accumulated Every Year"
-	leave_calculation += header_text + "<br>" + joiningtext + " | " + workingdaystext + "<br>"
-	# leave_calculation += test_calc + "<br>"
-	
-	return leaveadvance,leave_calculation, encash_leave
-
-@frappe.whitelist()			
-def custom_get_loan_deductions(start_date,end_date,employee):
-	it = start_date
-	dt = end_date
-	loandata = frappe.db.sql("""
-			select t1.transaction_amount
-			from `tabMRP Loan Transaction` t1,`tabMRP Loan Type` t2
-			where
-			t1.parent = %s
-			and t1.transaction_date >= %s 
-			and t1.transaction_date <= %s
-			and (t2.name = t1.transaction_type and t2.type = 'Deduction' and t2.affect_doctype = 'Salary Slip')
-			""", (employee,it,dt), as_dict=True)
-		
-
-	total_loan_deduction = 0
-	if loandata:
-		for d in loandata:
-			total_loan_deduction += d.transaction_amount
-	
-	return total_loan_deduction
