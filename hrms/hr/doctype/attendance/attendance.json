@@ -206,6 +206,7 @@
  ],
  "icon": "fa fa-ok",
  "idx": 1,
+ "is_submittable": 1,
  "links": [],
  "modified": "2025-01-31 11:45:54.846562",
  "modified_by": "Administrator",
@@ -215,6 +216,7 @@
  "owner": "Administrator",
  "permissions": [
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -223,9 +225,11 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -236,9 +240,11 @@
    "report": 1,
    "role": "HR User",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -247,6 +253,7 @@
    "report": 1,
    "role": "HR Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {
