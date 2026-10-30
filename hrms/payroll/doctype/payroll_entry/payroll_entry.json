@@ -244,7 +244,8 @@
    "fieldname": "payroll_payable_account",
    "fieldtype": "Link",
    "label": "Payroll Payable Account",
-   "options": "Account"
+   "options": "Account",
+   "reqd": 1
   },
   {
    "collapsible": 1,
@@ -326,6 +327,7 @@
   }
  ],
  "icon": "fa fa-cog",
+ "is_submittable": 1,
  "links": [],
  "modified": "2023-07-13 12:27:33.418702",
  "modified_by": "Administrator",
@@ -335,12 +337,14 @@
  "owner": "Administrator",
  "permissions": [
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "read": 1,
    "report": 1,
    "role": "HR Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   }
  ],

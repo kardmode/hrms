@@ -772,6 +772,7 @@
  ],
  "icon": "fa fa-file-text",
  "idx": 9,
+ "is_submittable": 1,
  "links": [],
  "modified": "2024-07-01 21:25:36.651583",
  "modified_by": "Administrator",
@@ -787,9 +788,12 @@
    "report": 1,
    "role": "HR User",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {
+   "amend": 1,
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -798,6 +802,7 @@
    "report": 1,
    "role": "HR Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {

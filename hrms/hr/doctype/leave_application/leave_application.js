@@ -44,8 +44,7 @@ frappe.ui.form.on("Leave Application", {
 		} else if (frm.doc.half_day === 0) {
 			frm.doc.half_day_date = "";
 		}
-		frm.toggle_reqd("half_day_date", frm.doc.half_day == 1);
-		frm.set_value("leave_approver", "accounts@maarifagroup.com");
+		frm.toggle_reqd("half_day_date", cint(frm.doc.half_day));
 	},
 
 	make_dashboard: function (frm) {
@@ -84,7 +83,7 @@ frappe.ui.form.on("Leave Application", {
 
 			frm.set_query("leave_type", function () {
 				return {
-					filters: [/*['leave_type_name', 'in', allowed_leave_types]*/]
+					filters: [["leave_type_name", "in", allowed_leave_types]],
 				};
 			});
 		}
